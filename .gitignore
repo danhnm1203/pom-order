@@ -24,6 +24,11 @@ yarn-error.log*
 .pnpm-debug.log*
 frontend/dist/
 
+# TS build artifacts (vite.config typecheck)
+*.tsbuildinfo
+frontend/vite.config.d.ts
+frontend/vite.config.js
+
 # Env
 .env
 .env.local
