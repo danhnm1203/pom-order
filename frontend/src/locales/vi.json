@@ -188,6 +188,7 @@
     "add_new": "+ Khách mới",
     "create_error": "Lỗi tạo khách",
     "search_placeholder": "Tìm khách theo tên...",
+    "combobox_placeholder": "Tìm theo tên hoặc số điện thoại...",
     "empty_state": "Chưa có khách. Thêm khách đầu tiên.",
     "no_search_results": "Không tìm thấy khách hàng.",
     "saving": "Đang lưu...",

@@ -188,6 +188,7 @@
     "add_new": "+ 새 고객",
     "create_error": "고객 생성 실패",
     "search_placeholder": "이름으로 검색...",
+    "combobox_placeholder": "이름 또는 전화번호로 검색...",
     "empty_state": "고객이 없습니다. 첫 고객을 추가하세요.",
     "no_search_results": "검색 결과 없음",
     "saving": "저장 중...",

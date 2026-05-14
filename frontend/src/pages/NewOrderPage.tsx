@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 
+import { CustomerCombobox } from '@/components/CustomerCombobox'
 import { CustomerQuickAdd } from '@/components/CustomerQuickAdd'
 import { apiClient, ApiException } from '@/lib/api-client'
 import { formatVnd } from '@/lib/utils'
@@ -137,19 +138,12 @@ export function NewOrderPage() {
                 </button>
               )}
             </div>
-            <select
+            <CustomerCombobox
+              customers={customers}
               value={customerId}
-              onChange={(e) => setCustomerId(e.target.value)}
+              onChange={setCustomerId}
               disabled={showQuickAdd}
-              className="w-full px-3 py-2 border border-border rounded-md text-sm disabled:opacity-50"
-            >
-              <option value="">{t('order.customer_pick')}</option>
-              {customers.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+            />
             {showQuickAdd && (
               <CustomerQuickAdd
                 onCreated={(c) => {
