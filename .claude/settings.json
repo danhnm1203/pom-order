@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Skill(plan-eng-review)",
+      "Skill(plan-eng-review:*)",
+      "Bash(wc -l echo \"---total component files:\" ls /Users/danhnguyen/Desktop/VMO/unlockos-sdk/packages/full-package/src/components/*.tsx)",
+      "Bash(python3 -c \" import json, sys data = json.load\\(sys.stdin\\) print\\('=== Production dependencies \\(bundled, not externalized\\) ==='\\) external = ['react', 'react-dom', 'react-router-dom', 'i18next', 'react-i18next', 'i18next-browser-languagedetector', 'i18next-http-backend', '@supabase/supabase-js', 'qrcode'] for k,v in data.get\\('dependencies', {}\\).items\\(\\): if k not in external: print\\(f' {k}: {v}'\\) \")",
+      "Bash(echo \"---web vitals present: $?\")",
+      "Bash(sort -k5 -rh)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); co=d.get\\('compilerOptions',{}\\); print\\('strict:', co.get\\('strict'\\)\\); print\\('noUncheckedIndexedAccess:', co.get\\('noUncheckedIndexedAccess'\\)\\); print\\('strictNullChecks:', co.get\\('strictNullChecks'\\)\\); print\\('noImplicitAny:', co.get\\('noImplicitAny'\\)\\); print\\('skipLibCheck:', co.get\\('skipLibCheck'\\)\\)\")",
+      "Read(//Users/danhnguyen/Desktop/VMO/unlockos-sdk/**)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d.get\\('compilerOptions',{}\\), indent=2\\)\\)\")",
+      "Bash(rm -f plan.md)",
+      "Bash(rm -rf plans)",
+      "Bash(rm -f rules/ci-pipeline.md rules/deployment-checklist.md rules/extensibility.md)",
+      "Bash(rm -f skills/snippet-sdk-architecture.md skills/https-dev-setup.md skills/ical-reservation-matching.md skills/help-docs-workflow.md skills/menu-permission-manager.md skills/clickhouse-io.md skills/project-guidelines-example.md)",
+      "Bash(rm -f agents/halp-docs-creator.md)",
+      "Bash(rm /Users/danhnguyen/Desktop/freelancers/pom_order/.claude/skills/backend-patterns.md && ls /Users/danhnguyen/Desktop/freelancers/pom_order/.claude/skills/)",
+      "Bash(python3 -c ' *)",
+      "Bash(python3 -m py_compile app/api/routes/dashboard.py)",
+      "Bash(chmod +x scripts/demo.py)",
+      "Bash(python3 -c \"import pydantic; print\\(pydantic.VERSION\\)\")",
+      "Bash(curl -s http://127.0.0.1:54321/auth/v1/.well-known/jwks.json)",
+      "Bash(PGPASSWORD=postgres psql -h 127.0.0.1 -p 54322 -U postgres -d postgres -c ' *)",
+      "Bash(PGPASSWORD=postgres psql -h 127.0.0.1 -p 54322 -U postgres -d postgres -v ON_ERROR_STOP=1 -c ' *)",
+      "Bash(chmod +x /Users/danhnguyen/Desktop/freelancers/pom_order/scripts/backup_db.sh)",
+      "Bash(/Users/danhnguyen/Desktop/freelancers/pom_order/scripts/backup_db.sh)",
+      "Bash(chmod +x /Users/danhnguyen/Desktop/freelancers/pom_order/scripts/install_backup_cron.sh)",
+      "Bash(/Users/danhnguyen/Desktop/freelancers/pom_order/scripts/install_backup_cron.sh)",
+      "Bash(crontab -l)"
+    ],
+    "additionalDirectories": [
+      "/Users/danhnguyen/Desktop/freelancers/pom_order/.claude/skills"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/dangerous-command-guard.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "FILE=$(jq -r '.tool_input.file_path // empty'); if echo \"$FILE\" | grep -qE '\\.(md|txt)$' && ! echo \"$FILE\" | grep -qE '(docs/|\\.claude/|locales/|CHANGELOG|README|LICENSE)'; then echo \"WARNING: Creating markdown file outside docs/.claude/locales/: $FILE. Consider placing in .claude/skills/ or docs/ instead.\" >&2; fi; exit 0"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/post-edit.sh"
+          },
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/adr-reminder.sh"
+          },
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/security-skill-reminder.sh"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/stop-audit.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
