@@ -28,7 +28,12 @@
       "Bash(/Users/danhnguyen/Desktop/freelancers/pom_order/scripts/backup_db.sh)",
       "Bash(chmod +x /Users/danhnguyen/Desktop/freelancers/pom_order/scripts/install_backup_cron.sh)",
       "Bash(/Users/danhnguyen/Desktop/freelancers/pom_order/scripts/install_backup_cron.sh)",
-      "Bash(crontab -l)"
+      "Bash(crontab -l)",
+      "Bash(curl -s -L \"https://adurl.io/\" --max-time 5)",
+      "Bash(curl -s -L \"https://adurl.io/dashboard/tools/api\" --max-time 5)",
+      "Bash(curl -s -L \"https://adurl.io/pages/api\" --max-time 5)",
+      "Bash(curl -s -L \"https://adurl.io/developers\" --max-time 5)",
+      "Bash(curl -s \"https://adurl.io/api?api=65f454fa0c524e902e30ffaff9ca58673d53080d&url=https://example.com/test-pom-order\" --max-time 10 -w \"\\\\n--- HTTP: %{http_code} | content-type: %{content_type} ---\\\\n\")"
     ],
     "additionalDirectories": [
       "/Users/danhnguyen/Desktop/freelancers/pom_order/.claude/skills"

@@ -59,6 +59,21 @@ class OrderStatusUpdate(BaseModel):
     problem_reason: str | None = None
 
 
+class OrderShortLinkResponse(BaseModel):
+    """Returned by POST /orders/{id}/short-link.
+
+    `short_url` may be null if shortener is disabled or failed — caller should
+    fall back to `long_url`. `error_reason` carries the adurl.io message when
+    shortening failed (helpful for debugging — e.g., "URL is invalid" when
+    targeting localhost).
+    """
+
+    long_url: str
+    short_url: str | None
+    is_cached: bool
+    error_reason: str | None = None
+
+
 class OrderResponse(BaseModel):
     """Response shape for an order. fx_rate is always set (DB column is NOT NULL)."""
 

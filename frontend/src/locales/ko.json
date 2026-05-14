@@ -83,7 +83,11 @@
     "intl_shipping": "한 → 베 배송비 (VND)",
     "notes": "주문 메모",
     "share_link": "고객용 링크 복사",
+    "share_link_short": "단축 링크 복사",
     "share_link_copied": "고객용 링크가 복사되었습니다: {{url}}",
+    "share_link_short_copied": "단축 링크 복사됨: {{url}}",
+    "share_link_short_unavailable": "단축에 실패했습니다 (adurl.io 응답 없음). 전체 링크가 복사되었습니다.",
+    "share_link_loading": "단축 링크 가져오는 중...",
     "status_update_label": "상태 변경",
     "items_table": {
       "brand": "브랜드",

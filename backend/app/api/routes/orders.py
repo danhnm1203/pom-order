@@ -11,7 +11,12 @@ from app.dependencies import get_current_shop_id, get_current_user_id, get_db
 from app.models.order import Order, OrderStatus
 from app.models.payment import Payment
 from app.schemas.common import OrderTotalsResponse
-from app.schemas.order import OrderCreate, OrderResponse, OrderStatusUpdate
+from app.schemas.order import (
+    OrderCreate,
+    OrderResponse,
+    OrderShortLinkResponse,
+    OrderStatusUpdate,
+)
 from app.services import order as order_service
 from app.services import payment as payment_service
 
@@ -102,3 +107,27 @@ async def update_order_status(
         db, shop_id=shop_id, order_id=order_id
     )
     return _to_response(order, payments=payments)
+
+
+@router.post("/{order_id}/short-link", response_model=OrderShortLinkResponse)
+async def get_short_link(
+    order_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    shop_id: UUID = Depends(get_current_shop_id),
+) -> OrderShortLinkResponse:
+    """Get or create a shortened public URL for this order.
+
+    Idempotent: subsequent calls return the same short URL. If the shortener is
+    disabled or fails, `short_url` is null — caller should fall back to `long_url`.
+    """
+    long_url, short_url, is_cached, error_reason = (
+        await order_service.get_or_create_short_link(
+            db, shop_id=shop_id, order_id=order_id
+        )
+    )
+    return OrderShortLinkResponse(
+        long_url=long_url,
+        short_url=short_url,
+        is_cached=is_cached,
+        error_reason=error_reason,
+    )

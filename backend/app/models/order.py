@@ -94,6 +94,10 @@ class Order(Base):
     #   out_of_stock | wrong_variant | ship_delay | customer_cancel | damaged | customs_hold | other
     # Set when status='problem'. Null otherwise.
     problem_reason: Mapped[str | None] = mapped_column(String)
+    # Cached shortened public URL (from adurl.io or similar). Populated on demand
+    # when user clicks "share". Stable across requests so customers can re-use
+    # the same short link.
+    public_short_url: Mapped[str | None] = mapped_column(String)
     ordered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     expected_arrival_date: Mapped[date | None] = mapped_column(Date)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

@@ -266,3 +266,38 @@ def compute_totals_for_order(
         korean_shipping_krw=order.korean_shipping_krw,
         international_shipping_vnd=order.international_shipping_vnd,
     )
+
+
+def build_public_long_url(order: Order) -> str:
+    """Build the canonical long URL pointing at the public order page."""
+    from app.config import settings
+
+    base = settings.public_base_url.rstrip("/")
+    return f"{base}/o/{order.public_token}"
+
+
+async def get_or_create_short_link(
+    db: AsyncSession,
+    *,
+    shop_id: UUID,
+    order_id: UUID,
+) -> tuple[str, str | None, bool, str | None]:
+    """Return (long_url, short_url, is_cached, error_reason).
+
+    Idempotent: cached `order.public_short_url` returned as-is. On miss, call
+    shortener; on success persist; on failure, surface the human-readable reason
+    so the UI can show a useful message.
+    """
+    from app.services.url_shortener import shorten_url
+
+    order = await get_order(db, shop_id=shop_id, order_id=order_id)
+    long_url = build_public_long_url(order)
+
+    if order.public_short_url:
+        return long_url, order.public_short_url, True, None
+
+    short, error_reason = await shorten_url(long_url)
+    if short:
+        order.public_short_url = short
+        await db.flush()
+    return long_url, short, False, error_reason

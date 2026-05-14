@@ -63,6 +63,13 @@ export interface Order {
   totals: OrderTotals | null
 }
 
+export interface OrderShortLink {
+  long_url: string
+  short_url: string | null
+  is_cached: boolean
+  error_reason: string | null
+}
+
 export type ProblemReason =
   | 'out_of_stock'
   | 'wrong_variant'

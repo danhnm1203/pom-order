@@ -83,7 +83,11 @@
     "intl_shipping": "Phí ship Hàn → VN (VND)",
     "notes": "Ghi chú đơn",
     "share_link": "Copy link khách",
+    "share_link_short": "Copy link rút gọn",
     "share_link_copied": "Đã copy link cho khách: {{url}}",
+    "share_link_short_copied": "Đã copy link rút gọn: {{url}}",
+    "share_link_short_unavailable": "Không rút gọn được (adurl.io không trả lời). Đã copy link dài.",
+    "share_link_loading": "Đang lấy link rút gọn...",
     "status_update_label": "Cập nhật trạng thái",
     "items_table": {
       "brand": "Brand",

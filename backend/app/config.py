@@ -31,6 +31,13 @@ class Settings(BaseSettings):
 
     default_shop_id: UUID = UUID("00000000-0000-0000-0000-000000000001")
 
+    # URL shortener (adurl.io) — optional. Empty key = passthrough (no shortening).
+    adurl_api_key: str = ""
+    adurl_api_url: str = "https://adurl.io/api"
+    # Base URL the frontend serves /o/{token} from. Used to build the long URL we
+    # hand to the shortener. In production set to your real domain.
+    public_base_url: str = "http://localhost:5173"
+
     log_level: str = "INFO"
 
 
