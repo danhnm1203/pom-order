@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 
 import { QuickStatusMenu } from '@/components/QuickStatusMenu'
+import { useNotify } from '@/components/Toast'
 import { apiClient } from '@/lib/api-client'
 import { csvRow, downloadFile, formatVnd, getPrimaryContact } from '@/lib/utils'
 import { type Order, type OrderStatus } from '@/types/api'
@@ -21,6 +22,7 @@ const STATUS_FILTERS: Array<OrderStatus | 'all'> = [
 
 export function OrderListPage() {
   const { t, i18n } = useTranslation()
+  const notify = useNotify()
   const [orders, setOrders] = useState<Order[]>([])
   const [filter, setFilter] = useState<OrderStatus | 'all'>('all')
   const [search, setSearch] = useState('')
@@ -83,6 +85,7 @@ export function OrderListPage() {
     const csv = [csvRow(headers), ...rows].join('\n')
     const stamp = new Date().toISOString().slice(0, 10)
     downloadFile(`pom-orders-${stamp}.csv`, '﻿' + csv, 'text/csv;charset=utf-8')
+    notify.success(t('order.export_csv') + ' ✓')
   }
 
   function handleOrderUpdate(updated: Order) {
@@ -92,7 +95,7 @@ export function OrderListPage() {
   return (
     <div className="p-4 md:p-6 max-w-6xl">
       <div className="flex items-center justify-between mb-4 md:mb-6 flex-wrap gap-3">
-        <h1 className="text-xl font-semibold">{t('order.title')}</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{t('order.title')}</h1>
         <div className="flex gap-2 flex-wrap">
           <button
             type="button"
@@ -113,12 +116,16 @@ export function OrderListPage() {
 
       {/* Search bar */}
       <div className="mb-3">
+        <label htmlFor="order-search" className="sr-only">
+          {t('order.search_placeholder')}
+        </label>
         <input
+          id="order-search"
           type="search"
           placeholder={t('order.search_placeholder')}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full px-3 py-2 border border-border rounded-md text-sm bg-surface"
+          className="w-full px-3 py-2 border border-border rounded-md text-sm bg-surface focus:outline-none focus:border-accent"
         />
       </div>
 
@@ -142,9 +149,7 @@ export function OrderListPage() {
 
       {/* Content */}
       {loading ? (
-        <div className="bg-surface border border-border rounded-lg p-8 text-center text-fg-subtle">
-          {t('common.loading')}
-        </div>
+        <OrderListSkeleton />
       ) : error ? (
         <div className="bg-danger-bg border border-danger/20 text-danger rounded-md p-4 text-sm">
           {error}
@@ -295,6 +300,24 @@ export function OrderListPage() {
           </div>
         </>
       )}
+    </div>
+  )
+}
+
+function OrderListSkeleton() {
+  return (
+    <div className="bg-surface border border-border rounded-lg overflow-hidden animate-pulse">
+      {[1, 2, 3, 4].map((i) => (
+        <div
+          key={i}
+          className="flex items-center gap-4 px-4 py-3 border-b border-border last:border-b-0"
+        >
+          <div className="h-3 w-16 bg-surface-2 rounded" />
+          <div className="h-5 w-20 bg-surface-2 rounded" />
+          <div className="h-3 flex-1 bg-surface-2 rounded" />
+          <div className="h-3 w-24 bg-surface-2 rounded" />
+        </div>
+      ))}
     </div>
   )
 }

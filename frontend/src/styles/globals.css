@@ -107,8 +107,8 @@ h1, h2, h3, h4 {
 .badge--pending     { background: var(--color-surface-2);  color: var(--color-fg-muted); }
 .badge--ordered     { background: var(--color-accent-subtle); color: var(--color-accent); }
 .badge--in-transit  { background: #e0e7ff; color: var(--status-in-transit); }
-.badge--arrived     { background: #cffafe; color: var(--status-arrived); }
+.badge--arrived     { background: #cffafe; color: #0e7490; }       /* darker cyan for AA contrast */
 .badge--delivered   { background: var(--color-success-bg); color: var(--color-success); }
 .badge--completed   { background: var(--color-success-bg); color: var(--status-completed); }
 .badge--problem     { background: var(--color-danger-bg);  color: var(--color-danger); }
-.badge--cancelled   { background: var(--color-surface-2);  color: var(--color-fg-subtle); }
+.badge--cancelled   { background: var(--color-surface-2);  color: var(--color-fg-muted); }  /* was fg-subtle (#a1a1aa) — failed AA contrast */

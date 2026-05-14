@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 
+import { Modal } from '@/components/Modal'
 import { StatusBadge } from '@/components/StatusBadge'
+import { useNotify } from '@/components/Toast'
 import { apiClient, ApiException, generateIdempotencyKey } from '@/lib/api-client'
 import { formatVnd } from '@/lib/utils'
 import {
   type Order,
-  // type OrderShortLink, // re-enable when uncommenting copyShortLink() below
   type OrderStatus,
   type Payment,
   type PaymentType,
@@ -33,12 +34,11 @@ function contactHref(channel: string, value: string): string {
     case 'email':
       return `mailto:${value}`
     case 'zalo':
-      // Zalo deep link works on mobile if installed; gracefully fails on desktop
       return `https://zalo.me/${value.replace(/\D/g, '')}`
     case 'facebook':
       return value.startsWith('http') ? value : `https://facebook.com/${value}`
     case 'kakao':
-      return `https://open.kakao.com/o/${value}` // best-effort; user may have plain ID
+      return `https://open.kakao.com/o/${value}`
     default:
       return '#'
   }
@@ -57,13 +57,12 @@ const PROBLEM_REASON_KEYS: ProblemReason[] = [
 export function OrderDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { t, i18n } = useTranslation()
+  const notify = useNotify()
   const [order, setOrder] = useState<Order | null>(null)
   const [payments, setPayments] = useState<Payment[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  // TODO: re-enable when production-deployed. Uncomment together with
-  // the short-link button + copyShortLink() below.
-  // const [shortLinkLoading, setShortLinkLoading] = useState(false)
+  const [problemModalOpen, setProblemModalOpen] = useState(false)
 
   async function load() {
     if (!id) return
@@ -88,34 +87,24 @@ export function OrderDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
 
-  async function transitionStatus(newStatus: OrderStatus) {
+  async function applyStatus(newStatus: OrderStatus, problemReason?: string) {
     if (!order) return
-
-    let body: { status: OrderStatus; problem_reason?: string } = { status: newStatus }
-
-    // Transitioning to 'problem' requires a reason.
-    if (newStatus === 'problem') {
-      const reasonOptions = PROBLEM_REASON_KEYS.map(
-        (k, i) => `${i + 1}. ${t(`problem_reason.${k}`)} (${k})`,
-      ).join('\n')
-      const choice = window.prompt(
-        `${t('problem_reason.prompt_title')} ${t('problem_reason.prompt_help')}:\n\n${reasonOptions}`,
-      )
-      if (!choice || !choice.trim()) return
-      const num = parseInt(choice.trim(), 10)
-      const selected =
-        !isNaN(num) && num >= 1 && num <= PROBLEM_REASON_KEYS.length
-          ? PROBLEM_REASON_KEYS[num - 1]
-          : choice.trim()
-      body.problem_reason = selected
-    }
-
     try {
+      const body: { status: OrderStatus; problem_reason?: string } = { status: newStatus }
+      if (problemReason) body.problem_reason = problemReason
       const updated = await apiClient.patch<Order>(`/api/v1/orders/${order.id}/status`, body)
       setOrder(updated)
     } catch (err) {
-      alert(err instanceof ApiException ? err.message : t('order.status_change_error'))
+      notify.error(err instanceof ApiException ? err.message : t('order.status_change_error'))
     }
+  }
+
+  function onStatusButtonClick(newStatus: OrderStatus) {
+    if (newStatus === 'problem') {
+      setProblemModalOpen(true)
+      return
+    }
+    void applyStatus(newStatus)
   }
 
   async function recordPayment(amount: string, type: PaymentType, notes: string) {
@@ -128,82 +117,61 @@ export function OrderDetailPage() {
       )
       await load()
     } catch (err) {
-      alert(err instanceof ApiException ? err.message : t('payment.record_error'))
+      notify.error(err instanceof ApiException ? err.message : t('payment.record_error'))
     }
   }
 
-  // TODO: re-enable copyShortLink() when production-deployed.
-  // Backend endpoint POST /api/v1/orders/{id}/short-link vẫn hoạt động.
-  // async function copyShortLink() {
-  //   if (!order) return
-  //   setShortLinkLoading(true)
-  //   try {
-  //     const data = await apiClient.post<OrderShortLink>(
-  //       `/api/v1/orders/${order.id}/short-link`,
-  //       {},
-  //     )
-  //     const urlToCopy = data.short_url ?? data.long_url
-  //     await navigator.clipboard.writeText(urlToCopy)
-  //     if (data.short_url) {
-  //       alert(t('order.share_link_short_copied', { url: urlToCopy }))
-  //     } else {
-  //       const reasonSuffix = data.error_reason ? ` (${data.error_reason})` : ''
-  //       alert(t('order.share_link_short_unavailable') + reasonSuffix)
-  //     }
-  //   } catch (err) {
-  //     const fallback = `${window.location.origin}/o/${order.public_token}`
-  //     await navigator.clipboard.writeText(fallback)
-  //     alert(
-  //       err instanceof ApiException
-  //         ? `${err.message}\n${t('order.share_link_copied', { url: fallback })}`
-  //         : t('order.share_link_short_unavailable'),
-  //     )
-  //   } finally {
-  //     setShortLinkLoading(false)
-  //   }
-  // }
-
-  if (loading) return <div className="p-6 text-fg-subtle">{t('common.loading')}</div>
-  if (error) return <div className="p-6 text-danger">{error}</div>
+  if (loading) return <OrderDetailSkeleton />
+  if (error) {
+    return (
+      <div className="p-6 max-w-5xl">
+        <div className="bg-danger-bg border border-danger/20 text-danger rounded-md p-3 text-sm">
+          {error}
+        </div>
+      </div>
+    )
+  }
   if (!order) return null
 
   const publicUrl = `${window.location.origin}/o/${order.public_token}`
   const dateLocale = i18n.resolvedLanguage === 'ko' ? 'ko-KR' : 'vi-VN'
+  const koreanShippingKrw = Number(order.korean_shipping_krw)
 
   return (
-    <div className="p-6 max-w-5xl space-y-6">
+    <div className="p-4 md:p-6 max-w-5xl space-y-6">
+      {/* Back link */}
+      <Link
+        to="/orders"
+        className="inline-flex items-center text-sm text-fg-muted hover:text-fg transition-colors"
+      >
+        ← {t('order.title')}
+      </Link>
+
       {/* Header */}
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
-          <p className="text-xs text-fg-subtle font-mono">{t('order.id')} #{order.id.slice(0, 8)}</p>
-          <h1 className="text-xl font-semibold mt-1">
+          <p className="text-xs text-fg-subtle font-mono">
+            {t('order.id')} #{order.id.slice(0, 8)}
+          </p>
+          <div className="mt-2">
             <StatusBadge status={order.status} />
-          </h1>
+          </div>
         </div>
         <div className="flex items-center gap-3">
           <button
             type="button"
-            onClick={() => {
-              void navigator.clipboard.writeText(publicUrl)
-              alert(t('order.share_link_copied', { url: publicUrl }))
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(publicUrl)
+                notify.success(t('order.share_link_copied', { url: publicUrl }))
+              } catch {
+                notify.error(t('order.share_link_copied', { url: publicUrl }))
+              }
             }}
             className="text-sm text-accent hover:underline"
           >
             {t('order.share_link')}
           </button>
-          {/* TODO: Re-enable when deploying to production with real PUBLIC_BASE_URL.
-              Backend endpoint + adurl.io integration vẫn còn ở backend, chỉ ẩn UI.
-              Để bật lại: uncomment block dưới + xóa eslint-disable trên copyShortLink.
-          <span className="text-fg-subtle">·</span>
-          <button
-            type="button"
-            onClick={copyShortLink}
-            disabled={shortLinkLoading}
-            className="text-sm text-accent hover:underline disabled:opacity-50"
-          >
-            {shortLinkLoading ? t('order.share_link_loading') : t('order.share_link_short')}
-          </button>
-          */}
         </div>
       </div>
 
@@ -246,7 +214,10 @@ export function OrderDetailPage() {
       {/* Problem reason banner */}
       {order.status === 'problem' && order.problem_reason && (
         <div className="px-4 py-3 rounded-md bg-danger-bg border border-danger/20">
-          <p className="text-xs font-medium uppercase tracking-wide" style={{ color: 'var(--color-danger)' }}>
+          <p
+            className="text-xs font-medium uppercase tracking-wide"
+            style={{ color: 'var(--color-danger)' }}
+          >
             {t('problem_reason.label')}
           </p>
           <p className="text-sm mt-1">
@@ -268,7 +239,7 @@ export function OrderDetailPage() {
               <button
                 key={next}
                 type="button"
-                onClick={() => transitionStatus(next)}
+                onClick={() => onStatusButtonClick(next)}
                 className="px-3 py-1.5 rounded-md text-sm bg-surface-2 text-fg hover:bg-border transition-colors"
               >
                 → {t(`status.${next}`)}
@@ -283,8 +254,8 @@ export function OrderDetailPage() {
         <h2 className="text-sm font-semibold uppercase tracking-wide text-fg-muted mb-2">
           {t('order.items')} ({order.items.length})
         </h2>
-        <div className="bg-surface border border-border rounded-lg overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="bg-surface border border-border rounded-lg overflow-x-auto">
+          <table className="w-full text-sm min-w-[640px]">
             <thead className="bg-surface-2 text-xs font-semibold uppercase text-fg-muted">
               <tr>
                 <th className="text-left py-2 px-3">{t('order.items_table.brand')}</th>
@@ -311,9 +282,7 @@ export function OrderDetailPage() {
                     ) : (
                       item.product_name_snapshot
                     )}
-                    {item.notes && (
-                      <p className="text-xs text-fg-subtle mt-0.5">{item.notes}</p>
-                    )}
+                    {item.notes && <p className="text-xs text-fg-subtle mt-0.5">{item.notes}</p>}
                   </td>
                   <td className="py-2 px-3 text-right tabular">{item.quantity}</td>
                   <td className="py-2 px-3 text-right tabular text-fg-muted">
@@ -332,18 +301,157 @@ export function OrderDetailPage() {
       {/* Totals */}
       {order.totals && (
         <section className="bg-surface border border-border rounded-lg p-4 space-y-1.5 text-sm">
-          <Row label={t('order.totals.subtotal')} value={formatVnd(order.totals.total_vnd)} bold />
-          <Row label={t('order.totals.korean_shipping_note')} value="—" hint />
-          <Row label={t('order.totals.intl_shipping')} value={formatVnd(order.totals.international_shipping_vnd)} />
+          <Row
+            label={t('order.totals.subtotal')}
+            value={formatVnd(order.totals.total_vnd)}
+            bold
+          />
+          {koreanShippingKrw > 0 && (
+            <Row
+              label={t('order.totals.korean_shipping_note')}
+              value={`${koreanShippingKrw.toLocaleString('ko-KR')} ₩`}
+              hint
+            />
+          )}
+          <Row
+            label={t('order.totals.intl_shipping')}
+            value={formatVnd(order.totals.international_shipping_vnd)}
+          />
           <Row label={t('order.totals.cost')} value={formatVnd(order.totals.cost_vnd)} hint />
-          <Row label={t('order.totals.profit')} value={formatVnd(order.totals.profit_vnd)} highlight />
+          <Row
+            label={t('order.totals.profit')}
+            value={formatVnd(order.totals.profit_vnd)}
+            highlight
+          />
           <hr className="border-border my-2" />
           <Row label={t('order.totals.paid')} value={formatVnd(order.totals.total_paid_vnd)} />
-          <Row label={t('order.totals.owed')} value={formatVnd(order.totals.amount_owed_vnd)} bold />
+          <Row
+            label={t('order.totals.owed')}
+            value={formatVnd(order.totals.amount_owed_vnd)}
+            bold
+          />
         </section>
       )}
 
       <PaymentRecorder payments={payments} onRecord={recordPayment} dateLocale={dateLocale} />
+
+      <ProblemReasonModal
+        open={problemModalOpen}
+        onClose={() => setProblemModalOpen(false)}
+        onConfirm={(reason) => {
+          setProblemModalOpen(false)
+          void applyStatus('problem', reason)
+        }}
+      />
+    </div>
+  )
+}
+
+function ProblemReasonModal({
+  open,
+  onClose,
+  onConfirm,
+}: {
+  open: boolean
+  onClose: () => void
+  onConfirm: (reason: string) => void
+}) {
+  const { t } = useTranslation()
+  const [selected, setSelected] = useState<ProblemReason | null>(null)
+  const [other, setOther] = useState('')
+
+  // Reset state when modal opens
+  useEffect(() => {
+    if (open) {
+      setSelected(null)
+      setOther('')
+    }
+  }, [open])
+
+  function confirm() {
+    if (!selected) return
+    const reason = selected === 'other' && other.trim() ? other.trim() : selected
+    onConfirm(reason)
+  }
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={t('problem_reason.prompt_title')}
+      footer={
+        <>
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-3 py-1.5 rounded-md text-sm bg-surface text-fg-muted hover:text-fg border border-border"
+          >
+            {t('common.cancel')}
+          </button>
+          <button
+            type="button"
+            onClick={confirm}
+            disabled={!selected || (selected === 'other' && !other.trim())}
+            className="px-3 py-1.5 rounded-md text-sm font-semibold bg-danger text-white hover:opacity-90 disabled:opacity-50"
+            style={{ background: 'var(--color-danger)', color: '#fff' }}
+          >
+            {t('common.submit')}
+          </button>
+        </>
+      }
+    >
+      <fieldset className="space-y-2">
+        <legend className="sr-only">{t('problem_reason.prompt_title')}</legend>
+        {PROBLEM_REASON_KEYS.map((key) => (
+          <label
+            key={key}
+            className={`flex items-start gap-3 p-2.5 rounded-md border cursor-pointer transition-colors ${
+              selected === key
+                ? 'border-accent bg-accent-subtle'
+                : 'border-border hover:bg-surface-2'
+            }`}
+          >
+            <input
+              type="radio"
+              name="problem-reason"
+              value={key}
+              checked={selected === key}
+              onChange={() => setSelected(key)}
+              className="mt-0.5"
+            />
+            <span className="text-sm">{t(`problem_reason.${key}`)}</span>
+          </label>
+        ))}
+        {selected === 'other' && (
+          <input
+            type="text"
+            autoFocus
+            placeholder={t('problem_reason.prompt_help')}
+            value={other}
+            onChange={(e) => setOther(e.target.value)}
+            className="w-full mt-2 px-3 py-2 border border-border rounded-md text-sm"
+          />
+        )}
+      </fieldset>
+    </Modal>
+  )
+}
+
+function OrderDetailSkeleton() {
+  return (
+    <div className="p-4 md:p-6 max-w-5xl space-y-6 animate-pulse">
+      <div className="h-4 w-24 bg-surface-2 rounded" />
+      <div className="space-y-2">
+        <div className="h-3 w-32 bg-surface-2 rounded" />
+        <div className="h-7 w-40 bg-surface-2 rounded" />
+      </div>
+      <div className="bg-surface border border-border rounded-lg p-4 space-y-2">
+        <div className="h-3 w-20 bg-surface-2 rounded" />
+        <div className="h-5 w-48 bg-surface-2 rounded" />
+        <div className="h-3 w-56 bg-surface-2 rounded" />
+      </div>
+      <div className="h-32 bg-surface border border-border rounded-lg" />
+      <div className="h-40 bg-surface border border-border rounded-lg" />
     </div>
   )
 }
@@ -413,11 +521,14 @@ function PaymentRecorder({
           setNotes('')
           setSubmitting(false)
         }}
-        className="bg-surface border border-border rounded-lg p-4 mb-3 flex flex-wrap gap-2 items-end"
+        className="bg-surface border border-border rounded-lg p-4 mb-3 grid grid-cols-1 sm:grid-cols-4 gap-3 items-end"
       >
-        <div className="flex-1 min-w-32">
-          <label className="block text-xs text-fg-muted mb-1">{t('payment.amount')}</label>
+        <div className="sm:col-span-1">
+          <label htmlFor="pay-amount" className="block text-xs text-fg-muted mb-1">
+            {t('payment.amount')}
+          </label>
           <input
+            id="pay-amount"
             type="number"
             required
             value={amount}
@@ -427,11 +538,14 @@ function PaymentRecorder({
           />
         </div>
         <div>
-          <label className="block text-xs text-fg-muted mb-1">{t('payment.type')}</label>
+          <label htmlFor="pay-type" className="block text-xs text-fg-muted mb-1">
+            {t('payment.type')}
+          </label>
           <select
+            id="pay-type"
             value={type}
             onChange={(e) => setType(e.target.value as PaymentType)}
-            className="px-3 py-1.5 border border-border rounded-md text-sm"
+            className="w-full px-3 py-1.5 border border-border rounded-md text-sm bg-surface"
           >
             {(['deposit', 'balance', 'refund', 'adjustment'] as PaymentType[]).map((tt) => (
               <option key={tt} value={tt}>
@@ -440,9 +554,12 @@ function PaymentRecorder({
             ))}
           </select>
         </div>
-        <div className="flex-1 min-w-32">
-          <label className="block text-xs text-fg-muted mb-1">{t('payment.notes')}</label>
+        <div className="sm:col-span-1">
+          <label htmlFor="pay-notes" className="block text-xs text-fg-muted mb-1">
+            {t('payment.notes')}
+          </label>
           <input
+            id="pay-notes"
             type="text"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
@@ -462,8 +579,8 @@ function PaymentRecorder({
       {payments.length === 0 ? (
         <p className="text-sm text-fg-subtle">{t('payment.no_payments')}</p>
       ) : (
-        <div className="bg-surface border border-border rounded-lg overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="bg-surface border border-border rounded-lg overflow-x-auto">
+          <table className="w-full text-sm min-w-[480px]">
             <thead className="bg-surface-2 text-xs font-semibold uppercase text-fg-muted">
               <tr>
                 <th className="text-left py-2 px-3">{t('payment.table_time')}</th>

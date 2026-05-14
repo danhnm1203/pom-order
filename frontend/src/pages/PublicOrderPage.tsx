@@ -83,11 +83,14 @@ export function PublicOrderPage() {
           <p className="text-xs font-medium uppercase tracking-wide text-fg-muted">
             {t('public.current_status')}
           </p>
-          <p className="text-2xl font-semibold mt-2">
-            <span className={`badge badge--${data.status.replace('_', '-')}`}>
+          <div className="mt-3">
+            <span
+              className={`badge badge--${data.status.replace('_', '-')}`}
+              style={{ fontSize: '0.95rem', padding: '0.4rem 0.75rem' }}
+            >
               {t(`status.${data.status}`)}
             </span>
-          </p>
+          </div>
           {data.expected_arrival_date && !isCancelled && (
             <p className="text-sm text-fg-muted mt-3">
               {t('public.expected_arrival', {

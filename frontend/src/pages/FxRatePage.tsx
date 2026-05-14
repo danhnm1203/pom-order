@@ -57,8 +57,8 @@ export function FxRatePage() {
   const dateLocale = i18n.resolvedLanguage === 'ko' ? 'ko-KR' : 'vi-VN'
 
   return (
-    <div className="p-6 max-w-3xl">
-      <h1 className="text-xl font-semibold mb-6">{t('fx.title')}</h1>
+    <div className="p-4 md:p-6 max-w-3xl">
+      <h1 className="text-2xl font-semibold tracking-tight mb-6">{t('fx.title')}</h1>
 
       {/* Current rate */}
       <div className="bg-surface border border-border rounded-lg p-4 mb-6">
@@ -95,25 +95,31 @@ export function FxRatePage() {
           className="bg-surface border border-border rounded-lg p-4 flex flex-wrap gap-2 items-end"
         >
           <div className="flex-1 min-w-32">
-            <label className="block text-xs text-fg-muted mb-1">{t('fx.new_rate_label')}</label>
+            <label htmlFor="fx-rate" className="block text-xs text-fg-muted mb-1">
+              {t('fx.new_rate_label')}
+            </label>
             <input
+              id="fx-rate"
               type="number"
               step="0.0001"
               required
               value={newRate}
               onChange={(e) => setNewRate(e.target.value)}
               placeholder="18.0"
-              className="w-full px-3 py-1.5 border border-border rounded-md text-sm tabular"
+              className="w-full px-3 py-1.5 border border-border rounded-md text-sm tabular focus:outline-none focus:border-accent"
             />
           </div>
           <div className="flex-1 min-w-32">
-            <label className="block text-xs text-fg-muted mb-1">{t('customer.notes')}</label>
+            <label htmlFor="fx-notes" className="block text-xs text-fg-muted mb-1">
+              {t('customer.notes')}
+            </label>
             <input
+              id="fx-notes"
               type="text"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder={t('common.optional')}
-              className="w-full px-3 py-1.5 border border-border rounded-md text-sm"
+              className="w-full px-3 py-1.5 border border-border rounded-md text-sm focus:outline-none focus:border-accent"
             />
           </div>
           <button

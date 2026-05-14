@@ -26,8 +26,8 @@ export function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="p-6 max-w-6xl">
-        <h1 className="text-xl font-semibold mb-6">{t('dashboard.title')}</h1>
+      <div className="p-4 md:p-6 max-w-6xl">
+        <h1 className="text-2xl font-semibold tracking-tight mb-6">{t('dashboard.title')}</h1>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {[1, 2, 3].map((i) => (
             <div key={i} className="bg-surface border border-border rounded-lg p-4 h-24 animate-pulse" />
@@ -39,7 +39,7 @@ export function DashboardPage() {
 
   if (error) {
     return (
-      <div className="p-6 max-w-6xl">
+      <div className="p-4 md:p-6 max-w-6xl">
         <div className="bg-danger-bg border border-danger/20 text-danger rounded-md p-4 text-sm">
           {error}{' '}
           <button onClick={() => window.location.reload()} className="underline">
@@ -54,13 +54,17 @@ export function DashboardPage() {
 
   if (data.active_orders_count === 0) {
     return (
-      <div className="p-6 max-w-6xl">
-        <h1 className="text-xl font-semibold mb-6">{t('dashboard.title')}</h1>
-        <div className="bg-surface border border-border rounded-lg p-8 text-center">
-          <p className="text-fg-muted mb-4">{t('dashboard.empty_state')}</p>
+      <div className="p-4 md:p-6 max-w-6xl">
+        <h1 className="text-2xl font-semibold tracking-tight mb-6">{t('dashboard.title')}</h1>
+        <div className="bg-surface border border-border rounded-lg p-10 md:p-12 text-center">
+          <p className="text-3xl mb-3" aria-hidden="true">▤</p>
+          <p className="text-fg text-base font-medium">{t('dashboard.empty_state')}</p>
+          <p className="text-fg-muted text-sm mt-1 mb-5">
+            {t('order.create_title')}
+          </p>
           <a
             href="/orders/new"
-            className="inline-block px-4 py-2 bg-accent text-accent-fg rounded-md font-semibold text-sm hover:bg-accent-hover transition-colors"
+            className="inline-block px-5 py-2.5 bg-accent text-accent-fg rounded-md font-semibold text-sm hover:bg-accent-hover transition-colors"
           >
             {t('dashboard.create_first_order')}
           </a>
@@ -70,8 +74,8 @@ export function DashboardPage() {
   }
 
   return (
-    <div className="p-6 max-w-6xl">
-      <h1 className="text-xl font-semibold mb-6">{t('dashboard.title')}</h1>
+    <div className="p-4 md:p-6 max-w-6xl">
+      <h1 className="text-2xl font-semibold tracking-tight mb-6">{t('dashboard.title')}</h1>
 
       {/* FX rate freshness warning */}
       {data.fx_rate_is_stale && data.fx_rate_age_days !== null && (

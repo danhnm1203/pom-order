@@ -1,6 +1,7 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { useNotify } from '@/components/Toast'
 import { apiClient, ApiException } from '@/lib/api-client'
 import type { Customer } from '@/types/api'
 
@@ -10,6 +11,7 @@ export function CustomerListPage() {
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
+  const [seedName, setSeedName] = useState('')
 
   async function load() {
     setLoading(true)
@@ -28,13 +30,16 @@ export function CustomerListPage() {
   }, [search])
 
   return (
-    <div className="p-6 max-w-5xl">
+    <div className="p-4 md:p-6 max-w-5xl">
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-xl font-semibold">{t('customer.title')}</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{t('customer.title')}</h1>
         <button
           type="button"
-          onClick={() => setShowAdd((s) => !s)}
-          className="px-4 py-2 bg-accent text-accent-fg rounded-md font-semibold text-sm hover:bg-accent-hover"
+          onClick={() => {
+            setSeedName('')
+            setShowAdd((s) => !s)
+          }}
+          className="px-4 py-2 bg-accent text-accent-fg rounded-md font-semibold text-sm hover:bg-accent-hover transition-colors"
         >
           {showAdd ? t('common.cancel') : t('customer.add_new')}
         </button>
@@ -42,30 +47,52 @@ export function CustomerListPage() {
 
       {showAdd && (
         <NewCustomerForm
+          seedName={seedName}
           onCreated={() => {
             setShowAdd(false)
+            setSeedName('')
             void load()
           }}
         />
       )}
 
-      <input
-        type="search"
-        placeholder={t('customer.search_placeholder')}
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        className="w-full mb-4 px-3 py-2 border border-border rounded-md text-sm"
-      />
+      <div className="mb-4">
+        <label htmlFor="customer-search" className="sr-only">
+          {t('customer.search_placeholder')}
+        </label>
+        <input
+          id="customer-search"
+          type="search"
+          placeholder={t('customer.search_placeholder')}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:border-accent"
+        />
+      </div>
 
       {loading ? (
-        <div className="text-fg-subtle text-sm">{t('common.loading')}</div>
+        <CustomerListSkeleton />
       ) : customers.length === 0 ? (
-        <div className="bg-surface border border-border rounded-lg p-8 text-center text-fg-muted">
-          {search ? t('customer.no_search_results') : t('customer.empty_state')}
+        <div className="bg-surface border border-border rounded-lg p-8 text-center">
+          <p className="text-fg-muted text-sm">
+            {search ? t('customer.no_search_results') : t('customer.empty_state')}
+          </p>
+          {search && (
+            <button
+              type="button"
+              onClick={() => {
+                setSeedName(search)
+                setShowAdd(true)
+              }}
+              className="mt-3 inline-flex items-center gap-1 text-sm text-accent hover:underline"
+            >
+              + {t('customer.add_new')}: "{search}"
+            </button>
+          )}
         </div>
       ) : (
-        <div className="bg-surface border border-border rounded-lg overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="bg-surface border border-border rounded-lg overflow-x-auto">
+          <table className="w-full text-sm min-w-[480px]">
             <thead className="bg-surface-2 text-xs font-semibold uppercase text-fg-muted">
               <tr>
                 <th className="text-left py-2 px-4">{t('customer.name')}</th>
@@ -91,14 +118,42 @@ export function CustomerListPage() {
   )
 }
 
-function NewCustomerForm({ onCreated }: { onCreated: () => void }) {
+function CustomerListSkeleton() {
+  return (
+    <div className="bg-surface border border-border rounded-lg overflow-hidden animate-pulse">
+      {[1, 2, 3].map((i) => (
+        <div
+          key={i}
+          className="flex gap-4 px-4 py-3 border-b border-border last:border-b-0"
+        >
+          <div className="h-3 w-32 bg-surface-2 rounded" />
+          <div className="h-3 flex-1 bg-surface-2 rounded" />
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function NewCustomerForm({
+  seedName,
+  onCreated,
+}: {
+  seedName?: string
+  onCreated: () => void
+}) {
   const { t } = useTranslation()
-  const [name, setName] = useState('')
+  const notify = useNotify()
+  const [name, setName] = useState(seedName ?? '')
   const [zalo, setZalo] = useState('')
   const [phone, setPhone] = useState('')
   const [notes, setNotes] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // If parent passes a new seed (e.g. user clicks "create with name X"), pick it up
+  useEffect(() => {
+    if (seedName) setName(seedName)
+  }, [seedName])
 
   async function submit(e: FormEvent) {
     e.preventDefault()
@@ -118,6 +173,7 @@ function NewCustomerForm({ onCreated }: { onCreated: () => void }) {
       setZalo('')
       setPhone('')
       setNotes('')
+      notify.success(t('customer.save_customer') + ' ✓')
       onCreated()
     } catch (err) {
       setError(err instanceof ApiException ? err.message : t('customer.create_error'))
@@ -131,45 +187,77 @@ function NewCustomerForm({ onCreated }: { onCreated: () => void }) {
       onSubmit={submit}
       className="bg-surface border border-border rounded-lg p-4 mb-4 grid grid-cols-1 md:grid-cols-2 gap-3"
     >
-      <input
-        type="text"
-        required
-        placeholder={t('customer.name_placeholder')}
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        className="px-3 py-2 border border-border rounded-md text-sm"
-      />
-      <input
-        type="text"
-        placeholder={t('customer.zalo')}
-        value={zalo}
-        onChange={(e) => setZalo(e.target.value)}
-        className="px-3 py-2 border border-border rounded-md text-sm"
-      />
-      <input
-        type="text"
-        placeholder={t('customer.phone')}
-        value={phone}
-        onChange={(e) => setPhone(e.target.value)}
-        className="px-3 py-2 border border-border rounded-md text-sm"
-      />
-      <input
-        type="text"
-        placeholder={t('customer.notes')}
-        value={notes}
-        onChange={(e) => setNotes(e.target.value)}
-        className="px-3 py-2 border border-border rounded-md text-sm"
-      />
+      <div className="md:col-span-2">
+        <h2 className="text-sm font-semibold mb-3">{t('order.new_customer_form_title')}</h2>
+      </div>
+      <Field id="cust-name" label={t('customer.name')} required>
+        <input
+          id="cust-name"
+          type="text"
+          required
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className="w-full px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:border-accent"
+        />
+      </Field>
+      <Field id="cust-zalo" label={t('customer.zalo')}>
+        <input
+          id="cust-zalo"
+          type="text"
+          value={zalo}
+          onChange={(e) => setZalo(e.target.value)}
+          className="w-full px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:border-accent"
+        />
+      </Field>
+      <Field id="cust-phone" label={t('customer.phone')}>
+        <input
+          id="cust-phone"
+          type="tel"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          className="w-full px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:border-accent"
+        />
+      </Field>
+      <Field id="cust-notes" label={t('customer.notes')}>
+        <input
+          id="cust-notes"
+          type="text"
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          className="w-full px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:border-accent"
+        />
+      </Field>
       {error && <div className="md:col-span-2 text-sm text-danger">{error}</div>}
       <div className="md:col-span-2">
         <button
           type="submit"
           disabled={submitting || !name}
-          className="px-4 py-2 bg-accent text-accent-fg rounded-md font-semibold text-sm hover:bg-accent-hover disabled:opacity-50"
+          className="px-4 py-2 bg-accent text-accent-fg rounded-md font-semibold text-sm hover:bg-accent-hover disabled:opacity-50 transition-colors"
         >
           {submitting ? t('customer.saving') : t('customer.save_customer')}
         </button>
       </div>
     </form>
+  )
+}
+
+function Field({
+  id,
+  label,
+  required,
+  children,
+}: {
+  id: string
+  label: string
+  required?: boolean
+  children: ReactNode
+}) {
+  return (
+    <div>
+      <label htmlFor={id} className="block text-xs font-medium text-fg-muted mb-1">
+        {label} {required && <span className="text-danger">*</span>}
+      </label>
+      {children}
+    </div>
   )
 }

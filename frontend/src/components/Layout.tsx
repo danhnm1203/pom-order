@@ -5,17 +5,24 @@ import { LanguageSwitcher } from '@/components/LanguageSwitcher'
 import { useAuth } from '@/lib/auth-context'
 import { cn } from '@/lib/utils'
 
+interface NavItem {
+  to: string
+  label: string
+  icon: string
+  end?: boolean
+}
+
 export function Layout() {
   const { user, signOut } = useAuth()
   const navigate = useNavigate()
   const { t } = useTranslation()
 
-  const nav = [
-    { to: '/', label: t('nav.dashboard'), end: true },
-    { to: '/orders', label: t('nav.orders') },
-    { to: '/orders/new', label: t('nav.new_order') },
-    { to: '/customers', label: t('nav.customers') },
-    { to: '/fx', label: t('nav.fx_rate') },
+  const nav: NavItem[] = [
+    { to: '/', label: t('nav.dashboard'), icon: '◐', end: true },
+    { to: '/orders', label: t('nav.orders'), icon: '▤' },
+    { to: '/orders/new', label: t('nav.new_order'), icon: '+' },
+    { to: '/customers', label: t('nav.customers'), icon: '◯' },
+    { to: '/fx', label: t('nav.fx_rate'), icon: '₩' },
   ]
 
   return (
@@ -26,7 +33,7 @@ export function Layout() {
           <h1 className="text-lg font-semibold tracking-tight">{t('nav.app_name')}</h1>
           <p className="text-xs text-fg-subtle mt-1">{t('nav.app_tagline')}</p>
         </div>
-        <nav className="flex-1 py-3">
+        <nav className="flex-1 py-3" aria-label={t('nav.app_name')}>
           {nav.map((item) => (
             <NavLink
               key={item.to}
@@ -73,16 +80,42 @@ export function Layout() {
               navigate('/login')
             }}
             className="text-sm text-fg-muted"
+            aria-label={t('nav.logout')}
           >
             {t('nav.logout')}
           </button>
         </div>
       </header>
 
-      {/* Main content */}
-      <main className="flex-1 overflow-x-auto pt-14 md:pt-0">
+      {/* Main content — bottom padding on mobile leaves room for tab bar */}
+      <main className="flex-1 overflow-x-auto pt-14 pb-16 md:pt-0 md:pb-0">
         <Outlet />
       </main>
+
+      {/* Mobile bottom tab bar */}
+      <nav
+        className="md:hidden fixed bottom-0 left-0 right-0 z-10 bg-surface border-t border-border grid grid-cols-5"
+        aria-label={t('nav.app_name')}
+      >
+        {nav.map((item) => (
+          <NavLink
+            key={item.to}
+            to={item.to}
+            end={item.end}
+            className={({ isActive }) =>
+              cn(
+                'flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium transition-colors min-h-[44px]',
+                isActive ? 'text-accent' : 'text-fg-muted hover:text-fg',
+              )
+            }
+          >
+            <span className="text-lg leading-none" aria-hidden="true">
+              {item.icon}
+            </span>
+            <span className="leading-tight text-center px-1">{item.label}</span>
+          </NavLink>
+        ))}
+      </nav>
     </div>
   )
 }

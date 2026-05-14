@@ -1,12 +1,15 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 
 import { CustomerCombobox } from '@/components/CustomerCombobox'
 import { CustomerQuickAdd } from '@/components/CustomerQuickAdd'
+import { useNotify } from '@/components/Toast'
 import { apiClient, ApiException } from '@/lib/api-client'
 import { formatVnd } from '@/lib/utils'
 import type { Customer, FxRate, Order } from '@/types/api'
+
+const FX_STALE_THRESHOLD_DAYS = 7
 
 interface DraftItem {
   product_name_snapshot: string
@@ -31,6 +34,7 @@ const EMPTY_ITEM: DraftItem = {
 export function NewOrderPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const notify = useNotify()
   const [customers, setCustomers] = useState<Customer[]>([])
   const [fx, setFx] = useState<FxRate | null>(null)
   const [customerId, setCustomerId] = useState<string>('')
@@ -94,6 +98,7 @@ export function NewOrderPage() {
           notes: i.notes || null,
         })),
       })
+      notify.success(t('order.create_new') + ' ✓')
       navigate(`/orders/${order.id}`)
     } catch (err) {
       setError(
@@ -112,9 +117,34 @@ export function NewOrderPage() {
     setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)))
   }
 
+  const fxAgeDays = fx
+    ? Math.floor((Date.now() - new Date(fx.effective_from).getTime()) / (1000 * 60 * 60 * 24))
+    : null
+  const fxIsStale = fxAgeDays !== null && fxAgeDays > FX_STALE_THRESHOLD_DAYS
+
   return (
-    <div className="p-6 max-w-4xl">
-      <h1 className="text-xl font-semibold mb-6">{t('order.create_title')}</h1>
+    <div className="p-4 md:p-6 max-w-4xl">
+      <h1 className="text-2xl font-semibold tracking-tight mb-6">{t('order.create_title')}</h1>
+
+      {fxIsStale && (
+        <div className="mb-4 px-4 py-3 rounded-md bg-warning-bg border border-warning/20 flex items-start justify-between gap-3">
+          <p className="text-sm">
+            <span className="font-semibold" style={{ color: 'var(--color-warning)' }}>
+              {t('dashboard.fx_stale_title')}
+            </span>
+            <span className="text-fg-muted ml-1">
+              {t('dashboard.fx_stale_body', { days: fxAgeDays })}
+            </span>
+          </p>
+          <a
+            href="/fx"
+            className="text-sm font-semibold whitespace-nowrap"
+            style={{ color: 'var(--color-warning)' }}
+          >
+            {t('dashboard.fx_update_action')}
+          </a>
+        </div>
+      )}
 
       {error && (
         <div className="bg-danger-bg border border-danger/20 text-danger rounded-md p-3 text-sm mb-4">
@@ -191,64 +221,88 @@ export function NewOrderPage() {
           </div>
           <div className="space-y-3">
             {items.map((item, idx) => (
-              <div
+              <fieldset
                 key={idx}
                 className="bg-surface border border-border rounded-lg p-3 grid grid-cols-1 md:grid-cols-6 gap-2"
               >
-                <input
-                  type="text"
-                  placeholder={t('order.items_table.brand')}
-                  value={item.brand_name_snapshot}
-                  onChange={(e) => updateItem(idx, { brand_name_snapshot: e.target.value })}
-                  className="px-2 py-1.5 border border-border rounded-md text-sm"
-                />
-                <input
-                  type="text"
-                  placeholder={t('order.items_table.product')}
-                  required
-                  value={item.product_name_snapshot}
-                  onChange={(e) => updateItem(idx, { product_name_snapshot: e.target.value })}
-                  className="md:col-span-2 px-2 py-1.5 border border-border rounded-md text-sm"
-                />
-                <input
-                  type="number"
-                  step="0.01"
-                  placeholder={t('order.items_table.qty')}
-                  required
-                  value={item.quantity}
-                  onChange={(e) => updateItem(idx, { quantity: e.target.value })}
-                  className="px-2 py-1.5 border border-border rounded-md text-sm tabular"
-                />
-                <input
-                  type="number"
-                  placeholder={t('order.items_table.krw_cost')}
-                  required
-                  value={item.unit_cost_krw}
-                  onChange={(e) => updateItem(idx, { unit_cost_krw: e.target.value })}
-                  className="px-2 py-1.5 border border-border rounded-md text-sm tabular"
-                />
-                <input
-                  type="number"
-                  placeholder={t('order.items_table.vnd_sale_per_unit')}
-                  required
-                  value={item.unit_sale_price_vnd}
-                  onChange={(e) => updateItem(idx, { unit_sale_price_vnd: e.target.value })}
-                  className="px-2 py-1.5 border border-border rounded-md text-sm tabular"
-                />
-                <input
-                  type="url"
-                  placeholder={t('order.items_table.korean_url')}
-                  value={item.product_url_snapshot}
-                  onChange={(e) => updateItem(idx, { product_url_snapshot: e.target.value })}
-                  className="md:col-span-4 px-2 py-1.5 border border-border rounded-md text-sm"
-                />
-                <input
-                  type="text"
-                  placeholder={t('order.items_table.variant_notes')}
-                  value={item.notes}
-                  onChange={(e) => updateItem(idx, { notes: e.target.value })}
-                  className="md:col-span-2 px-2 py-1.5 border border-border rounded-md text-sm"
-                />
+                <legend className="sr-only">
+                  {t('order.items')} #{idx + 1}
+                </legend>
+                <ItemField label={t('order.items_table.brand')} className="md:col-span-1">
+                  <input
+                    type="text"
+                    aria-label={t('order.items_table.brand')}
+                    placeholder={t('order.items_table.brand')}
+                    value={item.brand_name_snapshot}
+                    onChange={(e) => updateItem(idx, { brand_name_snapshot: e.target.value })}
+                    className="w-full px-2 py-1.5 border border-border rounded-md text-sm focus:outline-none focus:border-accent"
+                  />
+                </ItemField>
+                <ItemField label={t('order.items_table.product')} required className="md:col-span-2">
+                  <input
+                    type="text"
+                    aria-label={t('order.items_table.product')}
+                    placeholder={t('order.items_table.product')}
+                    required
+                    value={item.product_name_snapshot}
+                    onChange={(e) => updateItem(idx, { product_name_snapshot: e.target.value })}
+                    className="w-full px-2 py-1.5 border border-border rounded-md text-sm focus:outline-none focus:border-accent"
+                  />
+                </ItemField>
+                <ItemField label={t('order.items_table.qty')} required>
+                  <input
+                    type="number"
+                    step="0.01"
+                    aria-label={t('order.items_table.qty')}
+                    placeholder={t('order.items_table.qty')}
+                    required
+                    value={item.quantity}
+                    onChange={(e) => updateItem(idx, { quantity: e.target.value })}
+                    className="w-full px-2 py-1.5 border border-border rounded-md text-sm tabular focus:outline-none focus:border-accent"
+                  />
+                </ItemField>
+                <ItemField label={t('order.items_table.krw_cost')} required>
+                  <input
+                    type="number"
+                    aria-label={t('order.items_table.krw_cost')}
+                    placeholder={t('order.items_table.krw_cost')}
+                    required
+                    value={item.unit_cost_krw}
+                    onChange={(e) => updateItem(idx, { unit_cost_krw: e.target.value })}
+                    className="w-full px-2 py-1.5 border border-border rounded-md text-sm tabular focus:outline-none focus:border-accent"
+                  />
+                </ItemField>
+                <ItemField label={t('order.items_table.vnd_sale_per_unit')} required>
+                  <input
+                    type="number"
+                    aria-label={t('order.items_table.vnd_sale_per_unit')}
+                    placeholder={t('order.items_table.vnd_sale_per_unit')}
+                    required
+                    value={item.unit_sale_price_vnd}
+                    onChange={(e) => updateItem(idx, { unit_sale_price_vnd: e.target.value })}
+                    className="w-full px-2 py-1.5 border border-border rounded-md text-sm tabular focus:outline-none focus:border-accent"
+                  />
+                </ItemField>
+                <ItemField label={t('order.items_table.korean_url')} className="md:col-span-4">
+                  <input
+                    type="url"
+                    aria-label={t('order.items_table.korean_url')}
+                    placeholder={t('order.items_table.korean_url')}
+                    value={item.product_url_snapshot}
+                    onChange={(e) => updateItem(idx, { product_url_snapshot: e.target.value })}
+                    className="w-full px-2 py-1.5 border border-border rounded-md text-sm focus:outline-none focus:border-accent"
+                  />
+                </ItemField>
+                <ItemField label={t('order.items_table.variant_notes')} className="md:col-span-2">
+                  <input
+                    type="text"
+                    aria-label={t('order.items_table.variant_notes')}
+                    placeholder={t('order.items_table.variant_notes')}
+                    value={item.notes}
+                    onChange={(e) => updateItem(idx, { notes: e.target.value })}
+                    className="w-full px-2 py-1.5 border border-border rounded-md text-sm focus:outline-none focus:border-accent"
+                  />
+                </ItemField>
                 {items.length > 1 && (
                   <button
                     type="button"
@@ -258,7 +312,7 @@ export function NewOrderPage() {
                     {t('order.remove_item')}
                   </button>
                 )}
-              </div>
+              </fieldset>
             ))}
           </div>
         </section>
@@ -319,6 +373,30 @@ export function NewOrderPage() {
           </button>
         </div>
       </form>
+    </div>
+  )
+}
+
+function ItemField({
+  label,
+  required,
+  className,
+  children,
+}: {
+  label: string
+  required?: boolean
+  className?: string
+  children: ReactNode
+}) {
+  // Wrapper for first-row inputs. Label is visually hidden (input has aria-label
+  // + placeholder) so the dense grid layout doesn't get pushed apart, but
+  // screen readers still hear it.
+  return (
+    <div className={className}>
+      <span className="sr-only">
+        {label} {required && '(required)'}
+      </span>
+      {children}
     </div>
   )
 }
