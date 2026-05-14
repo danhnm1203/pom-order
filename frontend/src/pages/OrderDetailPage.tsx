@@ -7,7 +7,7 @@ import { apiClient, ApiException, generateIdempotencyKey } from '@/lib/api-clien
 import { formatVnd } from '@/lib/utils'
 import {
   type Order,
-  type OrderShortLink,
+  // type OrderShortLink, // re-enable when uncommenting copyShortLink() below
   type OrderStatus,
   type Payment,
   type PaymentType,
@@ -132,35 +132,36 @@ export function OrderDetailPage() {
     }
   }
 
-  async function copyShortLink() {
-    if (!order) return
-    setShortLinkLoading(true)
-    try {
-      const data = await apiClient.post<OrderShortLink>(
-        `/api/v1/orders/${order.id}/short-link`,
-        {},
-      )
-      const urlToCopy = data.short_url ?? data.long_url
-      await navigator.clipboard.writeText(urlToCopy)
-      if (data.short_url) {
-        alert(t('order.share_link_short_copied', { url: urlToCopy }))
-      } else {
-        const reasonSuffix = data.error_reason ? ` (${data.error_reason})` : ''
-        alert(t('order.share_link_short_unavailable') + reasonSuffix)
-      }
-    } catch (err) {
-      // Fallback: copy long URL from local order data
-      const fallback = `${window.location.origin}/o/${order.public_token}`
-      await navigator.clipboard.writeText(fallback)
-      alert(
-        err instanceof ApiException
-          ? `${err.message}\n${t('order.share_link_copied', { url: fallback })}`
-          : t('order.share_link_short_unavailable'),
-      )
-    } finally {
-      setShortLinkLoading(false)
-    }
-  }
+  // TODO: re-enable copyShortLink() when production-deployed.
+  // Backend endpoint POST /api/v1/orders/{id}/short-link vẫn hoạt động.
+  // async function copyShortLink() {
+  //   if (!order) return
+  //   setShortLinkLoading(true)
+  //   try {
+  //     const data = await apiClient.post<OrderShortLink>(
+  //       `/api/v1/orders/${order.id}/short-link`,
+  //       {},
+  //     )
+  //     const urlToCopy = data.short_url ?? data.long_url
+  //     await navigator.clipboard.writeText(urlToCopy)
+  //     if (data.short_url) {
+  //       alert(t('order.share_link_short_copied', { url: urlToCopy }))
+  //     } else {
+  //       const reasonSuffix = data.error_reason ? ` (${data.error_reason})` : ''
+  //       alert(t('order.share_link_short_unavailable') + reasonSuffix)
+  //     }
+  //   } catch (err) {
+  //     const fallback = `${window.location.origin}/o/${order.public_token}`
+  //     await navigator.clipboard.writeText(fallback)
+  //     alert(
+  //       err instanceof ApiException
+  //         ? `${err.message}\n${t('order.share_link_copied', { url: fallback })}`
+  //         : t('order.share_link_short_unavailable'),
+  //     )
+  //   } finally {
+  //     setShortLinkLoading(false)
+  //   }
+  // }
 
   if (loading) return <div className="p-6 text-fg-subtle">{t('common.loading')}</div>
   if (error) return <div className="p-6 text-danger">{error}</div>
