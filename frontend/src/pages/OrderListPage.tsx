@@ -63,7 +63,7 @@ export function OrderListPage() {
       'created_at',
     ]
     const rows = orders.map((o) => {
-      const contact = getPrimaryContact(o.customer?.contacts)
+      const contact = getPrimaryContact(o.customer)
       const brands = Array.from(
         new Set(o.items.map((i) => i.brand_name_snapshot).filter(Boolean)),
       ).join(' / ')
@@ -189,7 +189,7 @@ export function OrderListPage() {
               </thead>
               <tbody>
                 {orders.map((o) => {
-                  const contact = getPrimaryContact(o.customer?.contacts)
+                  const contact = getPrimaryContact(o.customer)
                   return (
                     <tr key={o.id} className="border-t border-border hover:bg-surface-2">
                       <td className="py-2 px-4">
@@ -252,7 +252,7 @@ export function OrderListPage() {
           {/* Mobile card view (< md) */}
           <div className="md:hidden space-y-2">
             {orders.map((o) => {
-              const contact = getPrimaryContact(o.customer?.contacts)
+              const contact = getPrimaryContact(o.customer)
               return (
                 <div
                   key={o.id}

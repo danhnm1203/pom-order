@@ -156,7 +156,7 @@ export function CustomerCombobox({
             </li>
           ) : (
             filtered.map((c, idx) => {
-              const contact = getPrimaryContact(c.contacts)
+              const contact = getPrimaryContact(c)
               const isHighlighted = idx === highlightIdx
               const isSelected = c.id === value
               return (

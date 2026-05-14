@@ -34,17 +34,34 @@ interface ContactLike {
   is_primary: boolean
 }
 
+interface CustomerLike {
+  primary_phone?: string | null
+  contacts?: ContactLike[] | null
+}
+
 /**
  * Get the customer's "phone number" for display.
- * Falls back gracefully: phone → primary contact → first contact → '—'.
+ * Falls back gracefully: denormalized primary_phone → phone contact → primary contact → first contact → null.
  *
- * Returns a tuple `[label, value]` so the caller can render channel label
- * separately (useful when fallback is Zalo/Facebook, not actual phone).
+ * The backend keeps `customers.primary_phone` in sync via a DB trigger, so
+ * list views can skip eager-loading contacts and still display a phone.
+ * Detail views still load full contacts and may render the richer channel set.
  */
 export function getPrimaryContact(
-  contacts: ContactLike[] | null | undefined,
+  customerOrContacts: CustomerLike | ContactLike[] | null | undefined,
 ): { channel: string; value: string } | null {
-  if (!contacts || contacts.length === 0) return null
+  if (!customerOrContacts) return null
+
+  // Customer object — prefer the denormalized phone if present
+  if (!Array.isArray(customerOrContacts)) {
+    if (customerOrContacts.primary_phone) {
+      return { channel: 'phone', value: customerOrContacts.primary_phone }
+    }
+    return getPrimaryContact(customerOrContacts.contacts ?? [])
+  }
+
+  const contacts = customerOrContacts
+  if (contacts.length === 0) return null
   const phone = contacts.find((c) => c.channel === 'phone')
   if (phone) return { channel: phone.channel, value: phone.value }
   const primary = contacts.find((c) => c.is_primary)

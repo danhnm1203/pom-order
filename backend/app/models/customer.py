@@ -17,6 +17,9 @@ class Customer(Base):
     )
     name: Mapped[str] = mapped_column(String, nullable=False)
     notes: Mapped[str | None] = mapped_column(String)
+    # Denormalized from customer_contacts (sync'd by DB trigger). Used by list
+    # views to avoid an extra contacts round trip.
+    primary_phone: Mapped[str | None] = mapped_column(String)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

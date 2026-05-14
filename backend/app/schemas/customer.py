@@ -41,6 +41,7 @@ class CustomerResponse(CustomerBase):
 
     id: UUID
     shop_id: UUID
+    primary_phone: str | None = None
     created_at: datetime
     updated_at: datetime
     contacts: list[CustomerContactResponse] = []
@@ -50,10 +51,13 @@ class CustomerListItem(BaseModel):
     """Lightweight customer summary embedded in order list responses.
 
     Lighter than CustomerResponse — omits shop_id, timestamps, notes.
+    `primary_phone` is denormalized from `customer_contacts` (DB trigger) so
+    list endpoints can skip eager-loading contacts entirely.
     """
 
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
     name: str
+    primary_phone: str | None = None
     contacts: list[CustomerContactResponse] = []

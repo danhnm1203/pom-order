@@ -9,7 +9,10 @@ engine = create_async_engine(
     settings.database_url,
     pool_size=5,
     max_overflow=10,
-    pool_pre_ping=True,  # Supabase kills idle conns; cheap healthcheck before reuse
+    # Recycle connections before Supabase kills them (idle timeout ~10 min).
+    # Avoids pool_pre_ping=True which adds ~30-50ms per request on cloud Tokyo.
+    pool_recycle=300,
+    pool_pre_ping=False,
     echo=False,
 )
 

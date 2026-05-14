@@ -38,6 +38,8 @@ export interface OrderItem {
 export interface CustomerListItem {
   id: string
   name: string
+  /** Denormalized phone — populated for list views even when `contacts` is empty. */
+  primary_phone: string | null
   contacts: CustomerContact[]
 }
 
@@ -115,6 +117,7 @@ export interface Customer {
   shop_id: string
   name: string
   notes: string | null
+  primary_phone: string | null
   created_at: string
   updated_at: string
   contacts: CustomerContact[]

@@ -8,6 +8,10 @@ Idempotency contract:
   - Postgres unique constraint `payments_shop_id_idempotency_key_key` enforces this
     even if app-level check races.
 
+Insert strategy: `INSERT ... ON CONFLICT DO NOTHING RETURNING id` collapses the
+happy path to 1 round trip (vs SELECT-then-INSERT = 2). Replay path falls back
+to a SELECT to return the existing row.
+
 Refund flow: type='refund' creates a payment row with positive amount_vnd; the
 sign is interpreted by compute_order_totals.
 """
@@ -17,7 +21,7 @@ from __future__ import annotations
 from uuid import UUID
 
 from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.exceptions import ApiError
@@ -49,46 +53,43 @@ async def record_payment(
     if order_check.scalar_one_or_none() is None:
         raise ApiError(404, "order_not_found", "Đơn hàng không thuộc shop này")
 
-    # Idempotency: short-circuit if key already exists
-    existing = await db.execute(
-        select(Payment)
-        .where(Payment.shop_id == shop_id)
-        .where(Payment.idempotency_key == idempotency_key)
+    # Happy path: 1 round trip. On conflict the row is left untouched and no id
+    # is returned; we then SELECT the existing payment (replay path).
+    stmt = (
+        pg_insert(Payment)
+        .values(
+            order_id=order_id,
+            shop_id=shop_id,
+            idempotency_key=idempotency_key,
+            amount_vnd=data.amount_vnd,
+            type=data.type,
+            method_id=data.method_id,
+            paid_at=data.paid_at,
+            reference=data.reference,
+            notes=data.notes,
+        )
+        .on_conflict_do_nothing(index_elements=["shop_id", "idempotency_key"])
+        .returning(Payment.id)
     )
-    existing_payment = existing.scalar_one_or_none()
-    if existing_payment is not None:
-        # Idempotent replay — return existing record
-        return existing_payment
+    result = await db.execute(stmt)
+    new_id = result.scalar_one_or_none()
 
-    # Wrap INSERT in a SAVEPOINT so an IntegrityError (race condition on the
-    # unique constraint) rolls back ONLY this nested transaction. The outer
-    # transaction owned by `get_db` stays alive for the audit log insert below.
-    payment = Payment(
-        order_id=order_id,
-        shop_id=shop_id,
-        idempotency_key=idempotency_key,
-        amount_vnd=data.amount_vnd,
-        type=data.type,
-        method_id=data.method_id,
-        paid_at=data.paid_at,
-        reference=data.reference,
-        notes=data.notes,
-    )
-    try:
-        async with db.begin_nested():
-            db.add(payment)
-            await db.flush()
-    except IntegrityError as exc:
-        # Savepoint already rolled back. Session is still usable.
+    if new_id is None:
+        # Replay — fetch existing row by idempotency key
         existing = await db.execute(
             select(Payment)
             .where(Payment.shop_id == shop_id)
             .where(Payment.idempotency_key == idempotency_key)
         )
         existing_payment = existing.scalar_one_or_none()
-        if existing_payment is not None:
-            return existing_payment
-        raise ApiError(409, "payment_conflict", "Conflict recording payment") from exc
+        if existing_payment is None:
+            # Conflict reported but row not found — should never happen.
+            raise ApiError(409, "payment_conflict", "Conflict recording payment")
+        return existing_payment
+
+    # Newly inserted — fetch the ORM instance for return + relationships
+    fetched = await db.execute(select(Payment).where(Payment.id == new_id))
+    payment = fetched.scalar_one()
 
     await log_audit(
         db,

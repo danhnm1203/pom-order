@@ -149,13 +149,16 @@ async def list_orders(
     """
     from sqlalchemy import or_
 
+    # List view does NOT eager-load customer.contacts — instead it relies on
+    # the denormalized `customers.primary_phone` column (kept in sync by a DB
+    # trigger). Saves one round trip per list page.
     query = (
         select(Order)
         .where(Order.shop_id == shop_id)
         .where(Order.deleted_at.is_(None))
         .options(
             selectinload(Order.items),
-            selectinload(Order.customer).selectinload(Customer.contacts),
+            selectinload(Order.customer),
         )
         .order_by(Order.created_at.desc())
         .limit(limit)

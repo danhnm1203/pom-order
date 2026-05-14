@@ -33,10 +33,21 @@
       "Bash(curl -s -L \"https://adurl.io/dashboard/tools/api\" --max-time 5)",
       "Bash(curl -s -L \"https://adurl.io/pages/api\" --max-time 5)",
       "Bash(curl -s -L \"https://adurl.io/developers\" --max-time 5)",
-      "Bash(curl -s \"https://adurl.io/api?api=65f454fa0c524e902e30ffaff9ca58673d53080d&url=https://example.com/test-pom-order\" --max-time 10 -w \"\\\\n--- HTTP: %{http_code} | content-type: %{content_type} ---\\\\n\")"
+      "Bash(curl -s \"https://adurl.io/api?api=65f454fa0c524e902e30ffaff9ca58673d53080d&url=https://example.com/test-pom-order\" --max-time 10 -w \"\\\\n--- HTTP: %{http_code} | content-type: %{content_type} ---\\\\n\")",
+      "Bash(curl -s \"https://uwrbltnxicxxcimkrjbg.supabase.co/auth/v1/.well-known/jwks.json\" --max-time 5)",
+      "Bash(PGPASSWORD='NuDo1998!@' psql -h aws-0-ap-northeast-1.pooler.supabase.com -p 5432 -U postgres.uwrbltnxicxxcimkrjbg -d postgres -c \"SELECT current_database\\(\\), version\\(\\);\")",
+      "Bash(PGPASSWORD='NuDo1998!@' psql -h db.uwrbltnxicxxcimkrjbg.supabase.co -p 5432 -U postgres -d postgres -c \"SELECT current_database\\(\\);\")",
+      "Bash(PGPASSWORD='KRWwOqzOtg4TtPwp' psql -h db.uwrbltnxicxxcimkrjbg.supabase.co -p 5432 -U postgres -d postgres -c \"SELECT current_database\\(\\), current_user, version\\(\\);\")",
+      "Bash(PGPASSWORD='KRWwOqzOtg4TtPwp' psql -h db.uwrbltnxicxxcimkrjbg.supabase.co -p 5432 -U postgres -d postgres -f supabase/seed.sql)",
+      "Bash(supabase db *)",
+      "Bash(supabase gen *)",
+      "Bash(cp /tmp/supabase_types.ts /Users/danhnguyen/Desktop/freelancers/pom_order/frontend/src/types/supabase.ts && echo \"Updated supabase.ts\")",
+      "Bash(PGPASSWORD=KRWwOqzOtg4TtPwp psql \"postgresql://postgres@db.uwrbltnxicxxcimkrjbg.supabase.co:5432/postgres\" -c \"select id, name, primary_phone from customers limit 5;\" -c \"select indexname from pg_indexes where indexname like '%trgm%';\" -c \"select tgname from pg_trigger where tgname like 'trg_customer_contacts%';\")",
+      "Bash(python -c \"from app.api.routes.dashboard import get_dashboard; from app.services.payment import record_payment; from app.services.order import list_orders; from app.db.session import engine; print\\('imports OK'\\); print\\('engine pool:', type\\(engine.pool\\).__name__, 'pre_ping:', engine.pool._pre_ping if hasattr\\(engine.pool, '_pre_ping'\\) else 'n/a'\\)\")"
     ],
     "additionalDirectories": [
-      "/Users/danhnguyen/Desktop/freelancers/pom_order/.claude/skills"
+      "/Users/danhnguyen/Desktop/freelancers/pom_order/.claude/skills",
+      "/private/tmp"
     ]
   },
   "hooks": {
