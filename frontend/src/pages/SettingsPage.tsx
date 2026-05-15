@@ -43,7 +43,15 @@ export function SettingsPage() {
       setConfig(updated)
       notify.success(t('settings.save_success'))
     } catch (err) {
-      notify.error(err instanceof ApiException ? err.message : t('settings.save_error'))
+      // Surface the real error (network/CORS/etc.) instead of a generic fallback.
+      const msg =
+        err instanceof ApiException
+          ? err.message
+          : err instanceof Error
+            ? `${t('settings.save_error')}: ${err.message}`
+            : t('settings.save_error')
+      console.error('[settings] save failed:', err)
+      notify.error(msg)
     } finally {
       setSaving(false)
     }

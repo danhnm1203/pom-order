@@ -41,6 +41,11 @@ def create_app() -> FastAPI:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
+        # Vercel issues many preview URLs per project (pom-order-<hash>-<user>.vercel.app,
+        # pom-order-git-main-<user>.vercel.app, etc.). Match them via regex so we
+        # don't have to babysit the list. Local dev + canonical Vercel URLs stay
+        # in `allow_origins`.
+        allow_origin_regex=r"https://pom-order(-[a-z0-9-]+)?\.vercel\.app",
         # Tie credentials to having explicit origins (Starlette rejects ["*"] + credentials)
         allow_credentials=bool(settings.cors_origins) and "*" not in settings.cors_origins,
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
