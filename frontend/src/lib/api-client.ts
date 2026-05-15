@@ -93,6 +93,12 @@ export const apiClient = {
       method: 'PATCH',
       body: body !== undefined ? JSON.stringify(body) : undefined,
     }),
+  put: <T>(path: string, body?: unknown, opts?: FetchOptions) =>
+    request<T>(path, {
+      ...opts,
+      method: 'PUT',
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    }),
   delete: <T>(path: string, opts?: FetchOptions) =>
     request<T>(path, { ...opts, method: 'DELETE' }),
 }
