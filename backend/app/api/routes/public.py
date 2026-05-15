@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -16,10 +16,44 @@ from sqlalchemy.orm import selectinload
 from app.dependencies import get_db
 from app.exceptions import ApiError
 from app.models.order import Order
+from app.schemas.lookup import LookupRequest, LookupResponse, PublicShopInfo
+from app.services.lookup import perform_lookup, public_shop_info
 from app.services.order_calculations import compute_order_totals
 
 
 router = APIRouter()
+
+
+def _client_ip(request: Request) -> str:
+    """Extract the originating IP, trusting one upstream proxy hop.
+
+    On Railway/Vercel/Fly, the platform proxy sets X-Forwarded-For. We honor
+    the first IP in that list. Falls back to direct socket peer.
+    """
+    xff = request.headers.get("x-forwarded-for")
+    if xff:
+        return xff.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
+@router.get("/shop-info", response_model=PublicShopInfo)
+async def get_public_shop_info(db: AsyncSession = Depends(get_db)) -> PublicShopInfo:
+    """Surface the shop name + whether Zalo CTA is configured (no phone leak)."""
+    return await public_shop_info(db)
+
+
+@router.post("/lookup", response_model=LookupResponse)
+async def public_lookup(
+    body: LookupRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> LookupResponse:
+    """Unauthenticated price lookup.
+
+    Rate-limited at 30 req/hour/IP. Scrape results cached 1h per URL. Returns
+    scraped product + estimated VND breakdown + pre-filled Zalo deeplink.
+    """
+    return await perform_lookup(db, url=str(body.url), client_ip=_client_ip(request))
 
 
 @router.get("/orders/{token}")

@@ -17,6 +17,7 @@ from app.api.routes import (
     payments,
     public,
     scrape,
+    shop_settings,
 )
 from app.config import settings
 from app.db.session import close_db, init_db
@@ -59,6 +60,9 @@ def create_app() -> FastAPI:
     app.include_router(fx_rates.router, prefix="/api/v1/fx-rates", tags=["fx-rates"])
     app.include_router(dashboard.router, prefix="/api/v1/dashboard", tags=["dashboard"])
     app.include_router(scrape.router, prefix="/api/v1/scrape", tags=["scrape"])
+    app.include_router(
+        shop_settings.router, prefix="/api/v1/shop-settings", tags=["shop-settings"]
+    )
 
     return app
 

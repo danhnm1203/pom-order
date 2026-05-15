@@ -157,6 +157,39 @@ export interface DashboardData {
   fx_rate_is_stale: boolean
 }
 
+export interface PublicShopInfo {
+  name: string
+  zalo_phone: string
+  has_zalo: boolean
+}
+
+export interface PriceBreakdown {
+  product_vnd: number
+  markup_vnd: number
+  buying_fee_vnd: number
+  weight_fee_vnd: number
+  total_vnd: number
+}
+
+export interface LookupResponse {
+  source_url: string
+  brand: string | null
+  name: string
+  price_krw: string | null
+  image_url: string | null
+  fx_rate: string | null
+  breakdown: PriceBreakdown | null
+  zalo_url: string | null
+}
+
+export interface LookupConfig {
+  markup_pct: string
+  buying_fee_vnd: number
+  weight_fee_vnd: number
+  zalo_phone: string
+  zalo_message_template: string
+}
+
 export interface PublicOrderResponse {
   status: OrderStatus
   created_at: string

@@ -10,6 +10,9 @@ interface NavItem {
   label: string
   icon: string
   end?: boolean
+  /** Hide from mobile bottom tab bar (sidebar only) — used for less-frequent
+   *  admin pages where a 6th tab would crowd the bar on small phones. */
+  desktopOnly?: boolean
 }
 
 export function Layout() {
@@ -23,7 +26,9 @@ export function Layout() {
     { to: '/orders/new', label: t('nav.new_order'), icon: '+' },
     { to: '/customers', label: t('nav.customers'), icon: '◯' },
     { to: '/fx', label: t('nav.fx_rate'), icon: '₩' },
+    { to: '/settings', label: t('nav.settings'), icon: '⚙', desktopOnly: true },
   ]
+  const mobileNav = nav.filter((n) => !n.desktopOnly)
 
   return (
     <div className="min-h-screen flex bg-bg">
@@ -97,7 +102,7 @@ export function Layout() {
         className="md:hidden fixed bottom-0 left-0 right-0 z-10 bg-surface border-t border-border grid grid-cols-5"
         aria-label={t('nav.app_name')}
       >
-        {nav.map((item) => (
+        {mobileNav.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}

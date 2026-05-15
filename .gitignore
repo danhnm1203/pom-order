@@ -55,6 +55,7 @@ supabase/.temp/
 *.log
 backups/
 
-# Local-only scrapers (sites with explicit robots.txt AI-disallow). These
-# stay on the original developer's machine only and never get pushed.
-backend/app/services/scraper/shilladfs.py
+# (Local-only scraper gitignore rule removed 2026-05-15: user explicitly chose
+# to make Shilla DFS scraping available in the public lookup tool. They accept
+# the risk that Shilla DFS's robots.txt asserts ClaudeBot: Disallow / and
+# ai-train=no under EU Directive 2019/790.)

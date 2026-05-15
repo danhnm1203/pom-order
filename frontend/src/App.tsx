@@ -6,10 +6,12 @@ import { CustomerListPage } from '@/pages/CustomerListPage'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { FxRatePage } from '@/pages/FxRatePage'
 import { LoginPage } from '@/pages/LoginPage'
+import { LookupPage } from '@/pages/LookupPage'
 import { NewOrderPage } from '@/pages/NewOrderPage'
 import { OrderDetailPage } from '@/pages/OrderDetailPage'
 import { OrderListPage } from '@/pages/OrderListPage'
 import { PublicOrderPage } from '@/pages/PublicOrderPage'
+import { SettingsPage } from '@/pages/SettingsPage'
 
 export default function App() {
   return (
@@ -17,6 +19,8 @@ export default function App() {
       {/* Public — no auth */}
       <Route path="/login" element={<LoginPage />} />
       <Route path="/o/:token" element={<PublicOrderPage />} />
+      <Route path="/tra-cuu" element={<LookupPage />} />
+      <Route path="/lookup" element={<LookupPage />} />{/* English alias */}
 
       {/* Admin — auth required, sidebar layout */}
       <Route
@@ -32,6 +36,7 @@ export default function App() {
         <Route path="orders/:id" element={<OrderDetailPage />} />
         <Route path="customers" element={<CustomerListPage />} />
         <Route path="fx" element={<FxRatePage />} />
+        <Route path="settings" element={<SettingsPage />} />
       </Route>
 
       <Route path="*" element={<NotFound />} />
