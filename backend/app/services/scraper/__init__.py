@@ -23,6 +23,17 @@ EXTRACTORS: dict[str, type[Scraper]] = {
     "oliveyoung.com": OliveYoungScraper,
 }
 
+# Optional local-only scrapers. These modules are gitignored and absent on
+# any environment except the original developer's machine. The try/except
+# lets the dispatcher load cleanly on public deployments while still wiring
+# up the scrapers locally.
+try:
+    from app.services.scraper.shilladfs import ShillaDFSScraper
+
+    EXTRACTORS["shilladfs.com"] = ShillaDFSScraper
+except ImportError:
+    pass
+
 
 def _norm_host(url: str) -> str:
     """Return the registrable domain (drops www/m subdomains)."""

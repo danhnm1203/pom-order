@@ -54,3 +54,7 @@ supabase/.temp/
 .context/
 *.log
 backups/
+
+# Local-only scrapers (sites with explicit robots.txt AI-disallow). These
+# stay on the original developer's machine only and never get pushed.
+backend/app/services/scraper/shilladfs.py
