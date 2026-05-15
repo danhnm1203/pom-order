@@ -101,3 +101,11 @@ export const apiClient = {
 export function generateIdempotencyKey(): string {
   return crypto.randomUUID()
 }
+
+export interface ScrapedProduct {
+  source_url: string
+  brand: string | null
+  name: string
+  price_krw: string | null
+  image_url: string | null
+}

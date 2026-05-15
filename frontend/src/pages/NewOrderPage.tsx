@@ -4,8 +4,9 @@ import { useNavigate } from 'react-router-dom'
 
 import { CustomerCombobox } from '@/components/CustomerCombobox'
 import { CustomerQuickAdd } from '@/components/CustomerQuickAdd'
+import { Modal } from '@/components/Modal'
 import { useNotify } from '@/components/Toast'
-import { apiClient, ApiException } from '@/lib/api-client'
+import { apiClient, ApiException, type ScrapedProduct } from '@/lib/api-client'
 import { formatVnd } from '@/lib/utils'
 import type { Customer, FxRate, Order } from '@/types/api'
 
@@ -46,6 +47,7 @@ export function NewOrderPage() {
   const [items, setItems] = useState<DraftItem[]>([{ ...EMPTY_ITEM }])
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [importOpen, setImportOpen] = useState(false)
 
   useEffect(() => {
     void apiClient.get<Customer[]>('/api/v1/customers?limit=100').then(setCustomers)
@@ -115,6 +117,29 @@ export function NewOrderPage() {
 
   function updateItem(idx: number, patch: Partial<DraftItem>) {
     setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)))
+  }
+
+  function appendScrapedItems(scraped: ScrapedProduct[]) {
+    if (scraped.length === 0) return
+    setItems((prev) => {
+      // If first row is still the pristine empty default, replace it; otherwise append.
+      const firstIsEmpty =
+        prev.length === 1 &&
+        !prev[0]?.product_name_snapshot &&
+        !prev[0]?.unit_cost_krw &&
+        !prev[0]?.unit_sale_price_vnd
+      const newItems: DraftItem[] = scraped.map((s) => ({
+        ...EMPTY_ITEM,
+        product_name_snapshot: s.name,
+        product_url_snapshot: s.source_url,
+        brand_name_snapshot: s.brand ?? '',
+        unit_cost_krw: s.price_krw ?? '',
+        unit_sale_price_vnd: '',
+        quantity: '1',
+        notes: '',
+      }))
+      return firstIsEmpty ? newItems : [...prev, ...newItems]
+    })
   }
 
   const fxAgeDays = fx
@@ -207,17 +232,27 @@ export function NewOrderPage() {
 
         {/* Items */}
         <section>
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-fg-muted">
               {t('order.items')}
             </h2>
-            <button
-              type="button"
-              onClick={() => setItems((prev) => [...prev, { ...EMPTY_ITEM }])}
-              className="text-sm text-accent hover:underline"
-            >
-              {t('order.add_item')}
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setImportOpen(true)}
+                className="text-sm text-accent hover:underline"
+              >
+                {t('order.import_from_url')}
+              </button>
+              <span className="text-fg-subtle">·</span>
+              <button
+                type="button"
+                onClick={() => setItems((prev) => [...prev, { ...EMPTY_ITEM }])}
+                className="text-sm text-accent hover:underline"
+              >
+                {t('order.add_item')}
+              </button>
+            </div>
           </div>
           <div className="space-y-3">
             {items.map((item, idx) => (
@@ -373,7 +408,117 @@ export function NewOrderPage() {
           </button>
         </div>
       </form>
+
+      <ImportFromUrlModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        onImported={appendScrapedItems}
+      />
     </div>
+  )
+}
+
+function ImportFromUrlModal({
+  open,
+  onClose,
+  onImported,
+}: {
+  open: boolean
+  onClose: () => void
+  onImported: (items: ScrapedProduct[]) => void
+}) {
+  const { t } = useTranslation()
+  const notify = useNotify()
+  const [urls, setUrls] = useState('')
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null)
+
+  useEffect(() => {
+    if (open) {
+      setUrls('')
+      setProgress(null)
+    }
+  }, [open])
+
+  async function handleImport() {
+    const list = urls
+      .split(/[\n\r]+/)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0 && s.startsWith('http'))
+    if (list.length === 0) return
+
+    setProgress({ done: 0, total: list.length })
+    const results: ScrapedProduct[] = []
+    let failed = 0
+    for (const url of list) {
+      try {
+        const r = await apiClient.post<ScrapedProduct>('/api/v1/scrape/product', { url })
+        results.push(r)
+      } catch (err) {
+        failed += 1
+        const msg = err instanceof ApiException ? err.message : 'Unknown error'
+        notify.error(`${url.slice(0, 50)}... → ${msg}`)
+      } finally {
+        setProgress((p) => (p ? { ...p, done: p.done + 1 } : null))
+      }
+    }
+    setProgress(null)
+
+    if (results.length === 0) {
+      notify.error(t('order.import_all_failed'))
+      return
+    }
+
+    onImported(results)
+    if (failed > 0) {
+      notify.info(t('order.import_partial_error', { ok: results.length, failed }))
+    } else {
+      notify.success(t('order.import_success_count', { count: results.length }))
+    }
+    onClose()
+  }
+
+  const submitting = progress !== null
+
+  return (
+    <Modal
+      open={open}
+      onClose={() => {
+        if (!submitting) onClose()
+      }}
+      title={t('order.import_modal_title')}
+      footer={
+        <>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={submitting}
+            className="px-3 py-1.5 rounded-md text-sm bg-surface text-fg-muted hover:text-fg border border-border disabled:opacity-50"
+          >
+            {t('common.cancel')}
+          </button>
+          <button
+            type="button"
+            onClick={handleImport}
+            disabled={submitting || urls.trim().length === 0}
+            className="px-3 py-1.5 rounded-md text-sm font-semibold bg-accent text-accent-fg hover:bg-accent-hover disabled:opacity-50"
+          >
+            {submitting
+              ? t('order.import_loading', { done: progress?.done, total: progress?.total })
+              : t('order.import_action')}
+          </button>
+        </>
+      }
+    >
+      <p className="text-xs text-fg-muted mb-2">{t('order.import_modal_help')}</p>
+      <textarea
+        rows={6}
+        value={urls}
+        onChange={(e) => setUrls(e.target.value)}
+        placeholder={t('order.import_modal_placeholder')}
+        disabled={submitting}
+        className="w-full px-3 py-2 border border-border rounded-md text-sm font-mono focus:outline-none focus:border-accent disabled:opacity-50"
+      />
+    </Modal>
   )
 }
 
