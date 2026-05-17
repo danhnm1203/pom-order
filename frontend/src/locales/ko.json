@@ -259,6 +259,7 @@
     "app_placeholder": "zalo / facebook / instagram...",
     "app_username": "앱 사용자명",
     "app_username_placeholder": "앱 사용자명",
+    "app_account": "앱 / 사용자명",
     "address": "배송 주소",
     "address_placeholder": "주소 (도로명, 동, 구, 시)",
     "notes": "메모",
