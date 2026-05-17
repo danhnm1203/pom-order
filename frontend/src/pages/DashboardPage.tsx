@@ -3,7 +3,10 @@ import { useTranslation } from 'react-i18next'
 
 import { apiClient, ApiException } from '@/lib/api-client'
 import { formatVnd } from '@/lib/utils'
-import { type DashboardData } from '@/types/api'
+import { type DashboardData, type ProfitDashboardData } from '@/types/api'
+
+const PROFIT_WINDOW_OPTIONS = [3, 6, 12] as const
+type ProfitWindow = (typeof PROFIT_WINDOW_OPTIONS)[number]
 
 export function DashboardPage() {
   const { t } = useTranslation()
@@ -127,7 +130,7 @@ export function DashboardPage() {
 
       {/* Top brands */}
       {data.top_brands_this_month.length > 0 && (
-        <section>
+        <section className="mb-8">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-fg-muted mb-3">
             {t('dashboard.top_brands')}
           </h2>
@@ -153,6 +156,8 @@ export function DashboardPage() {
           </div>
         </section>
       )}
+
+      <ProfitSection />
     </div>
   )
 }
@@ -162,6 +167,167 @@ function Stat({ label, value }: { label: string; value: string }) {
     <div className="bg-surface border border-border rounded-lg p-4">
       <p className="text-xs text-fg-muted font-medium uppercase tracking-wide">{label}</p>
       <p className="text-2xl font-semibold mt-2 tabular">{value}</p>
+    </div>
+  )
+}
+
+function ProfitSection() {
+  const { t } = useTranslation()
+  const [windowMonths, setWindowMonths] = useState<ProfitWindow>(12)
+  const [profit, setProfit] = useState<ProfitDashboardData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+    apiClient
+      .get<ProfitDashboardData>(`/api/v1/dashboard/profit?window_months=${windowMonths}`)
+      .then((d) => {
+        if (cancelled) return
+        setProfit(d)
+        setError(null)
+      })
+      .catch((err) => {
+        if (cancelled) return
+        setError(err instanceof ApiException ? err.message : t('dashboard.profit.load_error'))
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [t, windowMonths])
+
+  return (
+    <section className="mt-8">
+      <div className="flex items-end justify-between mb-3 gap-3 flex-wrap">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-fg-muted">
+          {t('dashboard.profit.section_title')}
+        </h2>
+        <label className="text-xs text-fg-muted flex items-center gap-2">
+          <span>{t('dashboard.profit.window_label')}</span>
+          <select
+            value={windowMonths}
+            onChange={(e) => setWindowMonths(Number(e.target.value) as ProfitWindow)}
+            className="bg-surface border border-border rounded px-2 py-1 text-sm text-fg"
+          >
+            {PROFIT_WINDOW_OPTIONS.map((m) => (
+              <option key={m} value={m}>
+                {t('dashboard.profit.window_months', { count: m })}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      {loading && (
+        <div className="bg-surface border border-border rounded-lg p-6 h-32 animate-pulse" />
+      )}
+
+      {!loading && error && (
+        <div className="bg-danger-bg border border-danger/20 text-danger rounded-md p-4 text-sm">
+          {error}
+        </div>
+      )}
+
+      {!loading && !error && profit && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <CustomerProfitTable rows={profit.top_customers_by_profit} />
+          <BrandProfitTable rows={profit.top_brands_by_profit} />
+        </div>
+      )}
+    </section>
+  )
+}
+
+function CustomerProfitTable({ rows }: { rows: ProfitDashboardData['top_customers_by_profit'] }) {
+  const { t } = useTranslation()
+  return (
+    <div className="bg-surface border border-border rounded-lg overflow-hidden">
+      <div className="px-4 py-2 bg-surface-2 text-xs font-semibold uppercase text-fg-muted">
+        {t('dashboard.profit.top_customers')}
+      </div>
+      {rows.length === 0 ? (
+        <p className="p-4 text-sm text-fg-muted">{t('dashboard.profit.empty')}</p>
+      ) : (
+        <table className="w-full text-sm">
+          <thead className="text-xs font-semibold uppercase text-fg-muted">
+            <tr>
+              <th className="text-left py-2 px-4">{t('dashboard.profit.customer')}</th>
+              <th className="text-right py-2 px-4">{t('dashboard.orders_count')}</th>
+              <th className="text-right py-2 px-4">{t('dashboard.profit.profit_vnd')}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => {
+              const profitNum = Number(r.profit_vnd)
+              return (
+                <tr key={r.customer_id} className="border-t border-border">
+                  <td className="py-2 px-4 truncate max-w-[180px]" title={r.customer_name}>
+                    {r.customer_name}
+                  </td>
+                  <td className="py-2 px-4 text-right tabular">{r.order_count}</td>
+                  <td
+                    className={`py-2 px-4 text-right tabular font-medium ${
+                      profitNum < 0 ? 'text-danger' : ''
+                    }`}
+                  >
+                    {formatVnd(r.profit_vnd)}
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      )}
+    </div>
+  )
+}
+
+function BrandProfitTable({ rows }: { rows: ProfitDashboardData['top_brands_by_profit'] }) {
+  const { t } = useTranslation()
+  return (
+    <div className="bg-surface border border-border rounded-lg overflow-hidden">
+      <div className="px-4 py-2 bg-surface-2 text-xs font-semibold uppercase text-fg-muted">
+        {t('dashboard.profit.top_brands')}
+      </div>
+      {rows.length === 0 ? (
+        <p className="p-4 text-sm text-fg-muted">{t('dashboard.profit.empty')}</p>
+      ) : (
+        <table className="w-full text-sm">
+          <thead className="text-xs font-semibold uppercase text-fg-muted">
+            <tr>
+              <th className="text-left py-2 px-4">{t('dashboard.brand')}</th>
+              <th className="text-right py-2 px-4">{t('dashboard.profit.profit_vnd')}</th>
+              <th className="text-right py-2 px-4">{t('dashboard.profit.margin_pct')}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => {
+              const profitNum = Number(r.profit_vnd)
+              return (
+                <tr key={r.brand_name} className="border-t border-border">
+                  <td className="py-2 px-4 truncate max-w-[180px]" title={r.brand_name}>
+                    {r.brand_name}
+                  </td>
+                  <td
+                    className={`py-2 px-4 text-right tabular font-medium ${
+                      profitNum < 0 ? 'text-danger' : ''
+                    }`}
+                  >
+                    {formatVnd(r.profit_vnd)}
+                  </td>
+                  <td className="py-2 px-4 text-right tabular text-fg-muted">
+                    {r.margin_pct === null ? '—' : `${r.margin_pct}%`}
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      )}
     </div>
   )
 }

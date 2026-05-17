@@ -92,24 +92,37 @@ export function CustomerListPage() {
         </div>
       ) : (
         <div className="bg-surface border border-border rounded-lg overflow-x-auto">
-          <table className="w-full text-sm min-w-[480px]">
+          <table className="w-full text-sm min-w-[640px]">
             <thead className="bg-surface-2 text-xs font-semibold uppercase text-fg-muted">
               <tr>
-                <th className="text-left py-2 px-4">{t('customer.name')}</th>
-                <th className="text-left py-2 px-4">{t('customer.contacts')}</th>
-                <th className="text-left py-2 px-4">{t('customer.notes')}</th>
+                <th className="text-left py-2 px-4">{t('customer.real_name')}</th>
+                <th className="text-left py-2 px-4">{t('customer.app_account')}</th>
+                <th className="text-left py-2 px-4">{t('customer.phone')}</th>
+                <th className="text-left py-2 px-4">{t('customer.address')}</th>
               </tr>
             </thead>
             <tbody>
-              {customers.map((c) => (
-                <tr key={c.id} className="border-t border-border hover:bg-surface-2">
-                  <td className="py-2 px-4 font-medium">{c.name}</td>
-                  <td className="py-2 px-4 text-xs text-fg-muted">
-                    {c.contacts.map((ct) => `${ct.channel}: ${ct.value}`).join(' · ') || '—'}
-                  </td>
-                  <td className="py-2 px-4 text-fg-muted">{c.notes ?? '—'}</td>
-                </tr>
-              ))}
+              {customers.map((c) => {
+                const appContact = c.contacts.find((ct) => ct.channel !== 'phone')
+                const phoneContact = c.contacts.find((ct) => ct.channel === 'phone')
+                const defaultAddr = c.addresses?.find((a) => a.is_default) ?? c.addresses?.[0]
+                return (
+                  <tr key={c.id} className="border-t border-border hover:bg-surface-2">
+                    <td className="py-2 px-4 font-medium">{c.name}</td>
+                    <td className="py-2 px-4 text-xs text-fg-muted">
+                      {appContact
+                        ? `${appContact.channel}: ${appContact.value}`
+                        : '—'}
+                    </td>
+                    <td className="py-2 px-4 text-xs text-fg-muted tabular">
+                      {phoneContact?.value ?? c.primary_phone ?? '—'}
+                    </td>
+                    <td className="py-2 px-4 text-xs text-fg-muted truncate max-w-[260px]">
+                      {defaultAddr?.street ?? '—'}
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>
@@ -134,6 +147,9 @@ function CustomerListSkeleton() {
   )
 }
 
+/** Common social apps surfaced as suggestions; users can still type anything. */
+const APP_SUGGESTIONS = ['zalo', 'facebook', 'instagram', 'kakao', 'line']
+
 function NewCustomerForm({
   seedName,
   onCreated,
@@ -144,8 +160,10 @@ function NewCustomerForm({
   const { t } = useTranslation()
   const notify = useNotify()
   const [name, setName] = useState(seedName ?? '')
-  const [zalo, setZalo] = useState('')
+  const [app, setApp] = useState('zalo')
+  const [appUsername, setAppUsername] = useState('')
   const [phone, setPhone] = useState('')
+  const [address, setAddress] = useState('')
   const [notes, setNotes] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -160,18 +178,32 @@ function NewCustomerForm({
     setSubmitting(true)
     setError(null)
     try {
-      const contacts = [
-        zalo ? { channel: 'zalo' as const, value: zalo, is_primary: true } : null,
-        phone ? { channel: 'phone' as const, value: phone, is_primary: !zalo } : null,
-      ].filter(Boolean)
+      const appChannel = app.trim().toLowerCase()
+      const contacts: Array<{ channel: string; value: string; is_primary: boolean }> = []
+      if (appUsername.trim() && appChannel) {
+        contacts.push({
+          channel: appChannel,
+          value: appUsername.trim(),
+          is_primary: true,
+        })
+      }
+      if (phone.trim()) {
+        contacts.push({
+          channel: 'phone',
+          value: phone.trim(),
+          is_primary: contacts.length === 0,
+        })
+      }
       await apiClient.post('/api/v1/customers', {
-        name,
-        notes: notes || null,
+        name: name.trim(),
+        notes: notes.trim() || null,
         contacts,
+        address: address.trim() || null,
       })
       setName('')
-      setZalo('')
+      setAppUsername('')
       setPhone('')
+      setAddress('')
       setNotes('')
       notify.success(t('customer.save_customer') + ' ✓')
       onCreated()
@@ -190,22 +222,13 @@ function NewCustomerForm({
       <div className="md:col-span-2">
         <h2 className="text-sm font-semibold mb-3">{t('order.new_customer_form_title')}</h2>
       </div>
-      <Field id="cust-name" label={t('customer.name')} required>
+      <Field id="cust-name" label={t('customer.real_name')} required>
         <input
           id="cust-name"
           type="text"
           required
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="w-full px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:border-accent"
-        />
-      </Field>
-      <Field id="cust-zalo" label={t('customer.zalo')}>
-        <input
-          id="cust-zalo"
-          type="text"
-          value={zalo}
-          onChange={(e) => setZalo(e.target.value)}
           className="w-full px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:border-accent"
         />
       </Field>
@@ -216,6 +239,41 @@ function NewCustomerForm({
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
           className="w-full px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:border-accent"
+        />
+      </Field>
+      <Field id="cust-app" label={t('customer.app')}>
+        <input
+          id="cust-app"
+          type="text"
+          list="cust-app-suggestions"
+          value={app}
+          onChange={(e) => setApp(e.target.value)}
+          placeholder={t('customer.app_placeholder')}
+          className="w-full px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:border-accent"
+        />
+        <datalist id="cust-app-suggestions">
+          {APP_SUGGESTIONS.map((a) => (
+            <option key={a} value={a} />
+          ))}
+        </datalist>
+      </Field>
+      <Field id="cust-app-username" label={t('customer.app_username')}>
+        <input
+          id="cust-app-username"
+          type="text"
+          value={appUsername}
+          onChange={(e) => setAppUsername(e.target.value)}
+          className="w-full px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:border-accent"
+        />
+      </Field>
+      <Field id="cust-address" label={t('customer.address')}>
+        <input
+          id="cust-address"
+          type="text"
+          value={address}
+          onChange={(e) => setAddress(e.target.value)}
+          placeholder={t('customer.address_placeholder')}
+          className="w-full px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:border-accent md:col-span-2"
         />
       </Field>
       <Field id="cust-notes" label={t('customer.notes')}>
@@ -231,7 +289,7 @@ function NewCustomerForm({
       <div className="md:col-span-2">
         <button
           type="submit"
-          disabled={submitting || !name}
+          disabled={submitting || !name.trim()}
           className="px-4 py-2 bg-accent text-accent-fg rounded-md font-semibold text-sm hover:bg-accent-hover disabled:opacity-50 transition-colors"
         >
           {submitting ? t('customer.saving') : t('customer.save_customer')}

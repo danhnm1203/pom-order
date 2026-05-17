@@ -1,4 +1,5 @@
 from decimal import Decimal
+from uuid import UUID
 
 from pydantic import BaseModel
 
@@ -14,6 +15,44 @@ class BrandSummary(BaseModel):
     brand_name: str
     order_count: int
     total_vnd: Decimal
+
+
+class CustomerProfit(BaseModel):
+    """Aggregate profit per customer over a time window.
+
+    Profit mirrors compute_order_totals: revenue − cost − international shipping.
+    Cost includes Korean shipping converted at each order's snapshotted FX rate.
+    """
+
+    customer_id: UUID
+    customer_name: str
+    order_count: int
+    revenue_vnd: Decimal
+    cost_vnd: Decimal
+    profit_vnd: Decimal
+
+
+class BrandProfit(BaseModel):
+    """Aggregate profit per brand over a time window.
+
+    Brand profit is item-only: revenue − (cost_krw × fx). Korean and international
+    shipping are per-order, not per-brand, so they are excluded from brand margin
+    to keep the "is this brand profitable" signal pure.
+    """
+
+    brand_name: str
+    order_count: int
+    item_count: int
+    revenue_vnd: Decimal
+    cost_vnd: Decimal
+    profit_vnd: Decimal
+    margin_pct: Decimal | None  # null when revenue == 0
+
+
+class ProfitDashboardResponse(BaseModel):
+    window_months: int
+    top_customers_by_profit: list[CustomerProfit]
+    top_brands_by_profit: list[BrandProfit]
 
 
 class DashboardResponse(BaseModel):

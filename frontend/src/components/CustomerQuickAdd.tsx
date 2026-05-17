@@ -9,6 +9,8 @@ interface CustomerQuickAddProps {
   onCancel: () => void
 }
 
+const APP_SUGGESTIONS = ['zalo', 'facebook', 'instagram', 'kakao', 'line']
+
 /**
  * Inline customer-create form for the New Order flow.
  * Submits → returns the created customer to the parent (which auto-selects it).
@@ -16,8 +18,10 @@ interface CustomerQuickAddProps {
 export function CustomerQuickAdd({ onCreated, onCancel }: CustomerQuickAddProps) {
   const { t } = useTranslation()
   const [name, setName] = useState('')
-  const [zalo, setZalo] = useState('')
+  const [app, setApp] = useState('zalo')
+  const [appUsername, setAppUsername] = useState('')
   const [phone, setPhone] = useState('')
+  const [address, setAddress] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -27,14 +31,27 @@ export function CustomerQuickAdd({ onCreated, onCancel }: CustomerQuickAddProps)
     setSubmitting(true)
     setError(null)
     try {
-      const contacts = [
-        zalo ? { channel: 'zalo' as const, value: zalo, is_primary: true } : null,
-        phone ? { channel: 'phone' as const, value: phone, is_primary: !zalo } : null,
-      ].filter(Boolean)
+      const appChannel = app.trim().toLowerCase()
+      const contacts: Array<{ channel: string; value: string; is_primary: boolean }> = []
+      if (appUsername.trim() && appChannel) {
+        contacts.push({
+          channel: appChannel,
+          value: appUsername.trim(),
+          is_primary: true,
+        })
+      }
+      if (phone.trim()) {
+        contacts.push({
+          channel: 'phone',
+          value: phone.trim(),
+          is_primary: contacts.length === 0,
+        })
+      }
       const created = await apiClient.post<Customer>('/api/v1/customers', {
         name: name.trim(),
         notes: null,
         contacts,
+        address: address.trim() || null,
       })
       onCreated(created)
     } catch (err) {
@@ -58,29 +75,49 @@ export function CustomerQuickAdd({ onCreated, onCancel }: CustomerQuickAddProps)
           ✕
         </button>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         <input
           type="text"
           required
           autoFocus
-          placeholder={t('customer.name_placeholder')}
+          placeholder={t('customer.real_name_placeholder')}
           value={name}
           onChange={(e) => setName(e.target.value)}
           className="px-2 py-1.5 border border-border rounded-md text-sm"
         />
         <input
-          type="text"
-          placeholder={t('customer.zalo')}
-          value={zalo}
-          onChange={(e) => setZalo(e.target.value)}
-          className="px-2 py-1.5 border border-border rounded-md text-sm"
-        />
-        <input
-          type="text"
+          type="tel"
           placeholder={t('customer.phone')}
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
           className="px-2 py-1.5 border border-border rounded-md text-sm"
+        />
+        <input
+          type="text"
+          list="quickadd-app-suggestions"
+          placeholder={t('customer.app_placeholder')}
+          value={app}
+          onChange={(e) => setApp(e.target.value)}
+          className="px-2 py-1.5 border border-border rounded-md text-sm"
+        />
+        <datalist id="quickadd-app-suggestions">
+          {APP_SUGGESTIONS.map((a) => (
+            <option key={a} value={a} />
+          ))}
+        </datalist>
+        <input
+          type="text"
+          placeholder={t('customer.app_username_placeholder')}
+          value={appUsername}
+          onChange={(e) => setAppUsername(e.target.value)}
+          className="px-2 py-1.5 border border-border rounded-md text-sm"
+        />
+        <input
+          type="text"
+          placeholder={t('customer.address_placeholder')}
+          value={address}
+          onChange={(e) => setAddress(e.target.value)}
+          className="px-2 py-1.5 border border-border rounded-md text-sm sm:col-span-2"
         />
       </div>
       {error && <p className="text-xs text-danger">{error}</p>}

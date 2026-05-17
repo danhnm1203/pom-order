@@ -6,7 +6,10 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class CustomerContactBase(BaseModel):
-    channel: Annotated[str, Field(pattern="^(phone|zalo|facebook|kakao|email)$")]
+    # Free-text channel — operator can name any app ("instagram", "line",
+    # "wechat", etc.). The trigger that denormalizes customers.primary_phone
+    # only treats channel='phone' specially; everything else is just stored.
+    channel: Annotated[str, Field(min_length=1, max_length=30)]
     value: Annotated[str, Field(min_length=1, max_length=255)]
     is_primary: bool = False
 
@@ -22,6 +25,20 @@ class CustomerContactResponse(CustomerContactBase):
     created_at: datetime
 
 
+class AddressResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    recipient_name: str | None = None
+    street: str
+    ward: str | None = None
+    district: str | None = None
+    city: str | None = None
+    province: str | None = None
+    postal_code: str | None = None
+    is_default: bool = False
+
+
 class CustomerBase(BaseModel):
     name: Annotated[str, Field(min_length=1, max_length=200)]
     notes: str | None = None
@@ -29,11 +46,18 @@ class CustomerBase(BaseModel):
 
 class CustomerCreate(CustomerBase):
     contacts: list[CustomerContactCreate] = []
+    # Optional single-line address. Stored in addresses.street with is_default=true.
+    # Structured fields (province/district/ward) are intentionally omitted from
+    # the simple flow — owner asks "where to ship" not "fill in 5 boxes".
+    address: Annotated[str | None, Field(min_length=1, max_length=500)] = None
 
 
 class CustomerUpdate(BaseModel):
     name: Annotated[str | None, Field(min_length=1, max_length=200)] = None
     notes: str | None = None
+    # When set, replaces the customer's default address (or creates one if none).
+    # Empty string clears nothing — the field is opt-in; pass null to leave alone.
+    address: Annotated[str | None, Field(min_length=1, max_length=500)] = None
 
 
 class CustomerResponse(CustomerBase):
@@ -45,6 +69,7 @@ class CustomerResponse(CustomerBase):
     created_at: datetime
     updated_at: datetime
     contacts: list[CustomerContactResponse] = []
+    addresses: list[AddressResponse] = []
 
 
 class CustomerListItem(BaseModel):

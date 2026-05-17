@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.exceptions import ApiError
-from app.models.customer import Customer, CustomerContact
+from app.models.customer import Address, Customer, CustomerContact
 from app.schemas.customer import CustomerCreate, CustomerUpdate
 
 
@@ -20,7 +20,7 @@ async def create_customer(
     shop_id: UUID,
     data: CustomerCreate,
 ) -> Customer:
-    """Insert customer + contacts in one transaction."""
+    """Insert customer + contacts + optional default address in one transaction."""
     customer = Customer(
         shop_id=shop_id,
         name=data.name.strip(),
@@ -33,9 +33,18 @@ async def create_customer(
         db.add(
             CustomerContact(
                 customer_id=customer.id,
-                channel=contact.channel,
+                channel=contact.channel.strip().lower(),
                 value=contact.value.strip(),
                 is_primary=contact.is_primary,
+            )
+        )
+
+    if data.address:
+        db.add(
+            Address(
+                customer_id=customer.id,
+                street=data.address.strip(),
+                is_default=True,
             )
         )
 
@@ -99,7 +108,11 @@ async def update_customer(
     customer_id: UUID,
     data: CustomerUpdate,
 ) -> Customer:
-    """Update mutable customer fields. Returns updated customer."""
+    """Update mutable customer fields. Returns updated customer.
+
+    If `data.address` is set, replaces the customer's default address
+    (or creates one if none exists).
+    """
     customer = await get_customer(db, shop_id=shop_id, customer_id=customer_id)
 
     if data.name is not None:
@@ -107,9 +120,24 @@ async def update_customer(
     if data.notes is not None:
         customer.notes = data.notes
 
+    if data.address is not None:
+        existing_default = next(
+            (a for a in customer.addresses if a.is_default), None
+        )
+        if existing_default is not None:
+            existing_default.street = data.address.strip()
+        else:
+            db.add(
+                Address(
+                    customer_id=customer.id,
+                    street=data.address.strip(),
+                    is_default=True,
+                )
+            )
+
     customer.updated_at = datetime.now(timezone.utc)
     await db.flush()
-    return customer
+    return await get_customer(db, shop_id=shop_id, customer_id=customer.id)
 
 
 async def soft_delete_customer(

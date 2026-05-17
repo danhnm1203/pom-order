@@ -105,11 +105,27 @@ export interface Payment {
   created_at: string
 }
 
+/** Free-text channel — common values: phone, zalo, facebook, instagram, kakao,
+ *  line, email. Stored lowercased. */
+export type ContactChannel = string
+
 export interface CustomerContact {
   id: string
-  channel: 'phone' | 'zalo' | 'facebook' | 'kakao' | 'email'
+  channel: ContactChannel
   value: string
   is_primary: boolean
+}
+
+export interface CustomerAddress {
+  id: string
+  recipient_name: string | null
+  street: string
+  ward: string | null
+  district: string | null
+  city: string | null
+  province: string | null
+  postal_code: string | null
+  is_default: boolean
 }
 
 export interface Customer {
@@ -121,6 +137,7 @@ export interface Customer {
   created_at: string
   updated_at: string
   contacts: CustomerContact[]
+  addresses: CustomerAddress[]
 }
 
 export interface FxRate {
@@ -155,6 +172,32 @@ export interface DashboardData {
   active_orders_count: number
   fx_rate_age_days: number | null
   fx_rate_is_stale: boolean
+}
+
+export interface CustomerProfit {
+  customer_id: string
+  customer_name: string
+  order_count: number
+  revenue_vnd: string
+  cost_vnd: string
+  profit_vnd: string
+}
+
+export interface BrandProfit {
+  brand_name: string
+  order_count: number
+  item_count: number
+  revenue_vnd: string
+  cost_vnd: string
+  profit_vnd: string
+  /** Percent (0-100) with 2 decimals; null when revenue is 0. */
+  margin_pct: string | null
+}
+
+export interface ProfitDashboardData {
+  window_months: number
+  top_customers_by_profit: CustomerProfit[]
+  top_brands_by_profit: BrandProfit[]
 }
 
 export interface PublicShopInfo {

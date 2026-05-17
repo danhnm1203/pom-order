@@ -63,7 +63,21 @@
       "Bash(grep -oE 'onclick=\"[^\"]{0,200}prdt[A-Z][^\"]*\"|onclick=\"[^\"]{0,200}product[A-Z][^\"]*\"' /tmp/shilla_event.html)",
       "Bash(grep -oE '[0-9]{1,3}\\(,[0-9]{3}\\)+\\(\\\\s|<|원\\)' /tmp/shilla_event.html)",
       "Bash(curl -sL -A \"Mozilla/5.0\" \"https://www.shilladfs.com/robots.txt\")",
-      "Bash(curl -sL -A \"Mozilla/5.0\" \"https://www.oliveyoung.co.kr/robots.txt\")"
+      "Bash(curl -sL -A \"Mozilla/5.0\" \"https://www.oliveyoung.co.kr/robots.txt\")",
+      "Bash(curl -sL -o /dev/null -w \"[%{http_code}] %{url_effective}\\\\n\" --max-time 8 \"https://79bf-2001-ee0-4101-2053-ed99-c89e-cb1a-7e9c.ngrok-free.app/health\")",
+      "Bash(curl -sL -o /dev/null -w \"[%{http_code}] http://localhost:8000/health\\\\n\" --max-time 3 \"http://localhost:8000/health\")",
+      "Bash(lsof -nP -iTCP:8000 -sTCP:LISTEN)",
+      "Bash(curl -sL -w \"\\\\n[Status: %{http_code}]\\\\n\" --max-time 8 \"https://79bf-2001-ee0-4101-2053-ed99-c89e-cb1a-7e9c.ngrok-free.app/api/v1/shop-settings/lookup\")",
+      "Bash(curl -sL -w \"\\\\n[Status: %{http_code}]\\\\n\" --max-time 3 \"http://localhost:8000/api/v1/shop-settings/lookup\")",
+      "Bash(curl -sLI -X OPTIONS -H 'Origin: __TRACKED_VAR__' -H 'Access-Control-Request-Method: PUT' -H 'Access-Control-Request-Headers: authorization,content-type' --max-time 8 https://79bf-2001-ee0-4101-2053-ed99-c89e-cb1a-7e9c.ngrok-free.app/api/v1/shop-settings/lookup)",
+      "Bash(git commit -m 'fix\\(api-client\\): add missing put\\(\\) method *)",
+      "Bash(python -c \"from app.api.routes.dashboard import router; print\\('routes:', [r.path for r in router.routes]\\)\")",
+      "Bash(python -m py_compile app/api/routes/dashboard.py app/schemas/dashboard.py)",
+      "Bash(npx --no-install tsc --noEmit)",
+      "Bash(echo \"exit=$?\")",
+      "Bash(./node_modules/.bin/tsc --noEmit)",
+      "Bash(python -m py_compile app/schemas/customer.py app/services/customer.py)",
+      "Bash(python -c \"import json; json.load\\(open\\('src/locales/vi.json'\\)\\); json.load\\(open\\('src/locales/ko.json'\\)\\); print\\('JSON valid'\\)\")"
     ],
     "additionalDirectories": [
       "/Users/danhnguyen/Desktop/freelancers/pom_order/.claude/skills",
