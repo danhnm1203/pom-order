@@ -263,6 +263,8 @@
     "app_username": "Username trên app",
     "app_username_placeholder": "Username trên app",
     "app_account": "App / Username",
+    "contact_url": "URL liên hệ",
+    "contact_url_placeholder": "https://zalo.me/... hoặc link Facebook/Instagram",
     "address": "Địa chỉ giao hàng",
     "address_placeholder": "Số nhà, đường, phường, quận, TP",
     "notes": "Ghi chú",

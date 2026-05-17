@@ -30,7 +30,8 @@ const ALL_STATUSES: OrderStatus[] = [
   'cancelled',
 ]
 
-/** Map contact channel to a clickable URL where it makes sense. */
+/** Map contact channel to a clickable URL where it makes sense.
+ *  Prefer `contact.url` if set; this fallback is for contacts without one. */
 function contactHref(channel: string, value: string): string {
   switch (channel) {
     case 'phone':
@@ -219,7 +220,7 @@ export function OrderDetailPage() {
                 const channelKey = `contact_channel.${c.channel}`
                 const channelLabel = t(channelKey, { defaultValue: c.channel })
                 return (
-                  <li key={c.id} className="flex items-baseline gap-2">
+                  <li key={c.id} className="flex items-baseline gap-2 flex-wrap">
                     <span className="text-xs text-fg-subtle uppercase w-20 tracking-wide">
                       {channelLabel}
                     </span>
@@ -229,6 +230,16 @@ export function OrderDetailPage() {
                     >
                       {c.value}
                     </a>
+                    {c.url && (
+                      <a
+                        href={c.url.startsWith('http') ? c.url : `https://${c.url}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-accent hover:underline"
+                      >
+                        ↗ {t('customer.contact_url')}
+                      </a>
+                    )}
                     {c.is_primary && (
                       <span className="text-xs text-fg-subtle">{t('order.primary_label')}</span>
                     )}

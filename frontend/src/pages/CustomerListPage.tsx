@@ -92,12 +92,13 @@ export function CustomerListPage() {
         </div>
       ) : (
         <div className="bg-surface border border-border rounded-lg overflow-x-auto">
-          <table className="w-full text-sm min-w-[640px]">
+          <table className="w-full text-sm min-w-[780px]">
             <thead className="bg-surface-2 text-xs font-semibold uppercase text-fg-muted">
               <tr>
                 <th className="text-left py-2 px-4">{t('customer.real_name')}</th>
                 <th className="text-left py-2 px-4">{t('customer.app_account')}</th>
                 <th className="text-left py-2 px-4">{t('customer.phone')}</th>
+                <th className="text-left py-2 px-4">{t('customer.contact_url')}</th>
                 <th className="text-left py-2 px-4">{t('customer.address')}</th>
               </tr>
             </thead>
@@ -105,6 +106,9 @@ export function CustomerListPage() {
               {customers.map((c) => {
                 const appContact = c.contacts.find((ct) => ct.channel !== 'phone')
                 const phoneContact = c.contacts.find((ct) => ct.channel === 'phone')
+                // URL lives on the same contact row as (app, username), not on
+                // its own pseudo-channel row.
+                const url = appContact?.url ?? null
                 const defaultAddr = c.addresses?.find((a) => a.is_default) ?? c.addresses?.[0]
                 return (
                   <tr key={c.id} className="border-t border-border hover:bg-surface-2">
@@ -116,6 +120,20 @@ export function CustomerListPage() {
                     </td>
                     <td className="py-2 px-4 text-xs text-fg-muted tabular">
                       {phoneContact?.value ?? c.primary_phone ?? '—'}
+                    </td>
+                    <td className="py-2 px-4 text-xs truncate max-w-[200px]">
+                      {url ? (
+                        <a
+                          href={url.startsWith('http') ? url : `https://${url}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-accent hover:underline"
+                        >
+                          {url}
+                        </a>
+                      ) : (
+                        <span className="text-fg-muted">—</span>
+                      )}
                     </td>
                     <td className="py-2 px-4 text-xs text-fg-muted truncate max-w-[260px]">
                       {defaultAddr?.street ?? '—'}
@@ -163,6 +181,7 @@ function NewCustomerForm({
   const [app, setApp] = useState('zalo')
   const [appUsername, setAppUsername] = useState('')
   const [phone, setPhone] = useState('')
+  const [contactUrl, setContactUrl] = useState('')
   const [address, setAddress] = useState('')
   const [notes, setNotes] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -179,11 +198,27 @@ function NewCustomerForm({
     setError(null)
     try {
       const appChannel = app.trim().toLowerCase()
-      const contacts: Array<{ channel: string; value: string; is_primary: boolean }> = []
+      const url = contactUrl.trim() || null
+      const contacts: Array<{
+        channel: string
+        value: string
+        url: string | null
+        is_primary: boolean
+      }> = []
       if (appUsername.trim() && appChannel) {
+        // URL belongs with the app contact (deep link for that channel/username).
         contacts.push({
           channel: appChannel,
           value: appUsername.trim(),
+          url,
+          is_primary: true,
+        })
+      } else if (url && appChannel) {
+        // URL but no username — still store under the chosen channel using URL as value.
+        contacts.push({
+          channel: appChannel,
+          value: url,
+          url,
           is_primary: true,
         })
       }
@@ -191,6 +226,7 @@ function NewCustomerForm({
         contacts.push({
           channel: 'phone',
           value: phone.trim(),
+          url: null,
           is_primary: contacts.length === 0,
         })
       }
@@ -203,6 +239,7 @@ function NewCustomerForm({
       setName('')
       setAppUsername('')
       setPhone('')
+      setContactUrl('')
       setAddress('')
       setNotes('')
       notify.success(t('customer.save_customer') + ' ✓')
@@ -266,6 +303,16 @@ function NewCustomerForm({
           className="w-full px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:border-accent"
         />
       </Field>
+      <Field id="cust-contact-url" label={t('customer.contact_url')} className="md:col-span-2">
+        <input
+          id="cust-contact-url"
+          type="url"
+          value={contactUrl}
+          onChange={(e) => setContactUrl(e.target.value)}
+          placeholder={t('customer.contact_url_placeholder')}
+          className="w-full px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:border-accent"
+        />
+      </Field>
       <Field id="cust-address" label={t('customer.address')}>
         <input
           id="cust-address"
@@ -303,15 +350,17 @@ function Field({
   id,
   label,
   required,
+  className,
   children,
 }: {
   id: string
   label: string
   required?: boolean
+  className?: string
   children: ReactNode
 }) {
   return (
-    <div>
+    <div className={className}>
       <label htmlFor={id} className="block text-xs font-medium text-fg-muted mb-1">
         {label} {required && <span className="text-danger">*</span>}
       </label>

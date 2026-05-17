@@ -35,6 +35,7 @@ async def create_customer(
                 customer_id=customer.id,
                 channel=contact.channel.strip().lower(),
                 value=contact.value.strip(),
+                url=contact.url.strip() if contact.url else None,
                 is_primary=contact.is_primary,
             )
         )

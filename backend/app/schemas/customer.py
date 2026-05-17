@@ -11,6 +11,8 @@ class CustomerContactBase(BaseModel):
     # only treats channel='phone' specially; everything else is just stored.
     channel: Annotated[str, Field(min_length=1, max_length=30)]
     value: Annotated[str, Field(min_length=1, max_length=255)]
+    # Optional deep-link/profile URL associated with the (channel, value) pair.
+    url: Annotated[str | None, Field(max_length=2000)] = None
     is_primary: bool = False
 
 

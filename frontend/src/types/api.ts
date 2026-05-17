@@ -113,6 +113,9 @@ export interface CustomerContact {
   id: string
   channel: ContactChannel
   value: string
+  /** Optional deep-link/profile URL associated with this contact
+   *  (e.g. https://zalo.me/0987... for a zalo entry). */
+  url: string | null
   is_primary: boolean
 }
 

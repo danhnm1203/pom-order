@@ -39,8 +39,11 @@ class CustomerContact(Base):
     customer_id: Mapped[UUID] = mapped_column(
         PgUUID(as_uuid=True), ForeignKey("customers.id", ondelete="CASCADE"), nullable=False
     )
-    channel: Mapped[str] = mapped_column(String, nullable=False)  # phone|zalo|facebook|kakao|email
+    channel: Mapped[str] = mapped_column(String, nullable=False)  # phone|zalo|facebook|kakao|email|...
     value: Mapped[str] = mapped_column(String, nullable=False)
+    # Optional deep-link / profile URL associated with this contact (e.g.
+    # https://zalo.me/0987... for a zalo contact). Independent of value.
+    url: Mapped[str | None] = mapped_column(String)
     is_primary: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

@@ -21,6 +21,7 @@ export function CustomerQuickAdd({ onCreated, onCancel }: CustomerQuickAddProps)
   const [app, setApp] = useState('zalo')
   const [appUsername, setAppUsername] = useState('')
   const [phone, setPhone] = useState('')
+  const [contactUrl, setContactUrl] = useState('')
   const [address, setAddress] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -32,11 +33,25 @@ export function CustomerQuickAdd({ onCreated, onCancel }: CustomerQuickAddProps)
     setError(null)
     try {
       const appChannel = app.trim().toLowerCase()
-      const contacts: Array<{ channel: string; value: string; is_primary: boolean }> = []
+      const url = contactUrl.trim() || null
+      const contacts: Array<{
+        channel: string
+        value: string
+        url: string | null
+        is_primary: boolean
+      }> = []
       if (appUsername.trim() && appChannel) {
         contacts.push({
           channel: appChannel,
           value: appUsername.trim(),
+          url,
+          is_primary: true,
+        })
+      } else if (url && appChannel) {
+        contacts.push({
+          channel: appChannel,
+          value: url,
+          url,
           is_primary: true,
         })
       }
@@ -44,6 +59,7 @@ export function CustomerQuickAdd({ onCreated, onCancel }: CustomerQuickAddProps)
         contacts.push({
           channel: 'phone',
           value: phone.trim(),
+          url: null,
           is_primary: contacts.length === 0,
         })
       }
@@ -111,6 +127,13 @@ export function CustomerQuickAdd({ onCreated, onCancel }: CustomerQuickAddProps)
           value={appUsername}
           onChange={(e) => setAppUsername(e.target.value)}
           className="px-2 py-1.5 border border-border rounded-md text-sm"
+        />
+        <input
+          type="url"
+          placeholder={t('customer.contact_url_placeholder')}
+          value={contactUrl}
+          onChange={(e) => setContactUrl(e.target.value)}
+          className="px-2 py-1.5 border border-border rounded-md text-sm sm:col-span-2"
         />
         <input
           type="text"
