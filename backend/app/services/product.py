@@ -131,6 +131,77 @@ async def update_product(
     return await get_product(db, shop_id=shop_id, product_id=product.id)
 
 
+async def find_or_create_for_snapshot(
+    db: AsyncSession,
+    *,
+    shop_id: UUID,
+    name: str,
+    brand_name: str | None,
+    url: str | None,
+    base_price_krw: Decimal | None,
+) -> UUID:
+    """Resolve a Product for an order-item snapshot, creating if needed.
+
+    Match precedence (URL is most reliable — scraped items share canonical URLs):
+      1. URL match (case-sensitive, within shop)
+      2. (lower(name) + lower(brand_name)) match within shop
+      3. Otherwise create a new Product
+
+    Returns the resolved/created product_id. Caller is responsible for flushing
+    the session if it relies on the row being queryable.
+    """
+    clean_name = name.strip()
+    clean_url = url.strip() if url else None
+    clean_brand = brand_name.strip() if brand_name else None
+
+    if clean_url:
+        existing = await db.execute(
+            select(Product.id)
+            .where(Product.shop_id == shop_id)
+            .where(Product.url == clean_url)
+            .limit(1)
+        )
+        found = existing.scalar_one_or_none()
+        if found is not None:
+            return found
+
+    if clean_name:
+        # Match name (case-insensitive). If brand is provided, restrict to that
+        # brand to avoid colliding with same-named items from different brands.
+        from sqlalchemy import func as sa_func
+
+        name_query = (
+            select(Product.id)
+            .where(Product.shop_id == shop_id)
+            .where(sa_func.lower(Product.name) == clean_name.lower())
+        )
+        if clean_brand:
+            name_query = name_query.join(
+                Brand, Brand.id == Product.brand_id
+            ).where(sa_func.lower(Brand.name) == clean_brand.lower())
+        else:
+            name_query = name_query.where(Product.brand_id.is_(None))
+
+        existing = await db.execute(name_query.limit(1))
+        found = existing.scalar_one_or_none()
+        if found is not None:
+            return found
+
+    brand_id = await _resolve_or_create_brand(
+        db, shop_id=shop_id, brand_name=clean_brand
+    )
+    product = Product(
+        shop_id=shop_id,
+        brand_id=brand_id,
+        name=clean_name,
+        url=clean_url,
+        base_price_krw=base_price_krw,
+    )
+    db.add(product)
+    await db.flush()
+    return product.id
+
+
 async def list_products_with_stats(
     db: AsyncSession,
     *,

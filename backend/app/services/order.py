@@ -78,11 +78,26 @@ async def create_order(
     db.add(order)
     await db.flush()  # populate order.id
 
+    # Auto-link every item to a Product row so the catalog + stats stay in sync.
+    # If the operator didn't pick one explicitly, find-or-create by URL/name+brand.
+    from app.services.product import find_or_create_for_snapshot
+
     for item_data in data.items:
+        resolved_product_id = item_data.product_id
+        if resolved_product_id is None:
+            resolved_product_id = await find_or_create_for_snapshot(
+                db,
+                shop_id=shop_id,
+                name=item_data.product_name_snapshot,
+                brand_name=item_data.brand_name_snapshot,
+                url=item_data.product_url_snapshot,
+                base_price_krw=item_data.unit_cost_krw,
+            )
+
         db.add(
             OrderItem(
                 order_id=order.id,
-                product_id=item_data.product_id,
+                product_id=resolved_product_id,
                 variant_id=item_data.variant_id,
                 product_name_snapshot=item_data.product_name_snapshot,
                 product_url_snapshot=item_data.product_url_snapshot,
