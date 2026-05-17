@@ -23,6 +23,21 @@ class PaymentCreate(PaymentBase):
     pass
 
 
+class PaymentUpdate(BaseModel):
+    """Partial update — typing fix for mis-entered payments.
+
+    Idempotency-Key + shop_id + order_id are immutable. Audit log captures
+    before/after for traceability.
+    """
+
+    amount_vnd: Annotated[Decimal | None, Field(gt=0, max_digits=18, decimal_places=0)] = None
+    type: PaymentType | None = None
+    method_id: UUID | None = None
+    paid_at: datetime | None = None
+    reference: str | None = None
+    notes: str | None = None
+
+
 class PaymentResponse(PaymentBase):
     model_config = ConfigDict(from_attributes=True)
 

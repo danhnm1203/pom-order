@@ -243,7 +243,10 @@
     "type_balance": "잔금",
     "type_refund": "환불",
     "type_adjustment": "조정",
-    "record_error": "결제 기록 실패"
+    "record_error": "결제 기록 실패",
+    "update_error": "결제 수정 실패",
+    "delete_error": "결제 삭제 실패",
+    "delete_confirm": "이 거래를 삭제하시겠습니까? 되돌릴 수 없습니다."
   },
   "customer": {
     "title": "고객",

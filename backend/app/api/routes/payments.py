@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_current_shop_id, get_current_user_id, get_db
 from app.exceptions import ApiError
-from app.schemas.payment import PaymentCreate, PaymentResponse
+from app.schemas.payment import PaymentCreate, PaymentResponse, PaymentUpdate
 from app.services import payment as payment_service
 
 
@@ -82,3 +82,44 @@ async def list_payments(
         db, shop_id=shop_id, order_id=order_id
     )
     return [PaymentResponse.model_validate(p) for p in payments]
+
+
+@router.patch(
+    "/{order_id}/payments/{payment_id}", response_model=PaymentResponse
+)
+async def update_payment(
+    order_id: UUID,
+    payment_id: UUID,
+    data: PaymentUpdate,
+    db: AsyncSession = Depends(get_db),
+    shop_id: UUID = Depends(get_current_shop_id),
+    user_id: UUID = Depends(get_current_user_id),
+) -> PaymentResponse:
+    payment = await payment_service.update_payment(
+        db,
+        shop_id=shop_id,
+        actor_id=user_id,
+        order_id=order_id,
+        payment_id=payment_id,
+        data=data,
+    )
+    return PaymentResponse.model_validate(payment)
+
+
+@router.delete(
+    "/{order_id}/payments/{payment_id}", status_code=status.HTTP_204_NO_CONTENT
+)
+async def delete_payment(
+    order_id: UUID,
+    payment_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    shop_id: UUID = Depends(get_current_shop_id),
+    user_id: UUID = Depends(get_current_user_id),
+) -> None:
+    await payment_service.delete_payment(
+        db,
+        shop_id=shop_id,
+        actor_id=user_id,
+        order_id=order_id,
+        payment_id=payment_id,
+    )

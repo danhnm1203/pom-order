@@ -26,7 +26,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.exceptions import ApiError
 from app.models.payment import Payment
-from app.schemas.payment import PaymentCreate
+from app.schemas.payment import PaymentCreate, PaymentUpdate
 from app.services.audit import log_audit
 
 
@@ -107,6 +107,104 @@ async def record_payment(
 
     await db.flush()
     return payment
+
+
+async def _get_payment_in_shop(
+    db: AsyncSession, *, shop_id: UUID, order_id: UUID, payment_id: UUID
+) -> Payment:
+    """Fetch a payment scoped to (shop, order). Raises 404 if not found."""
+    result = await db.execute(
+        select(Payment)
+        .where(Payment.id == payment_id)
+        .where(Payment.shop_id == shop_id)
+        .where(Payment.order_id == order_id)
+    )
+    payment = result.scalar_one_or_none()
+    if payment is None:
+        raise ApiError(404, "payment_not_found", "Khoản thanh toán không tồn tại")
+    return payment
+
+
+async def update_payment(
+    db: AsyncSession,
+    *,
+    shop_id: UUID,
+    actor_id: UUID,
+    order_id: UUID,
+    payment_id: UUID,
+    data: PaymentUpdate,
+) -> Payment:
+    """Edit a previously-recorded payment. Records before/after to audit_log."""
+    payment = await _get_payment_in_shop(
+        db, shop_id=shop_id, order_id=order_id, payment_id=payment_id
+    )
+
+    before = {
+        "amount_vnd": str(payment.amount_vnd),
+        "type": payment.type.value,
+        "notes": payment.notes,
+    }
+
+    changed: dict[str, object] = {}
+    if data.amount_vnd is not None and data.amount_vnd != payment.amount_vnd:
+        changed["amount_vnd"] = str(data.amount_vnd)
+        payment.amount_vnd = data.amount_vnd
+    if data.type is not None and data.type != payment.type:
+        changed["type"] = data.type.value
+        payment.type = data.type
+    if data.method_id is not None:
+        payment.method_id = data.method_id
+    if data.paid_at is not None:
+        payment.paid_at = data.paid_at
+    if data.reference is not None:
+        payment.reference = data.reference
+    if data.notes is not None:
+        payment.notes = data.notes
+
+    if changed:
+        await log_audit(
+            db,
+            shop_id=shop_id,
+            entity_type="payment",
+            entity_id=payment.id,
+            action="updated",
+            actor_id=actor_id,
+            changes={"from": before, "to": changed, "order_id": str(order_id)},
+        )
+
+    await db.flush()
+    return payment
+
+
+async def delete_payment(
+    db: AsyncSession,
+    *,
+    shop_id: UUID,
+    actor_id: UUID,
+    order_id: UUID,
+    payment_id: UUID,
+) -> None:
+    """Hard-delete a mis-entered payment. Snapshot recorded in audit_log."""
+    payment = await _get_payment_in_shop(
+        db, shop_id=shop_id, order_id=order_id, payment_id=payment_id
+    )
+
+    await log_audit(
+        db,
+        shop_id=shop_id,
+        entity_type="payment",
+        entity_id=payment.id,
+        action="deleted",
+        actor_id=actor_id,
+        changes={
+            "order_id": str(order_id),
+            "amount_vnd": str(payment.amount_vnd),
+            "type": payment.type.value,
+        },
+    )
+
+    await db.delete(payment)
+    await db.flush()
 
 
 async def list_payments_for_order(

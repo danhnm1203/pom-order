@@ -96,7 +96,9 @@
       "Bash(curl -s -o /dev/null -w \"GET /api/v1/customers: %{http_code}\\\\n\" http://localhost:8000/api/v1/customers)",
       "Bash(python -m py_compile app/services/order.py app/services/product.py)",
       "Bash(.venv/bin/python -c \"from app.main import app; print\\('app imports OK, routes:', len\\(app.routes\\)\\)\")",
-      "Bash(.venv/bin/python -c ' *)"
+      "Bash(.venv/bin/python -c ' *)",
+      "Bash(python -m py_compile app/schemas/payment.py app/services/payment.py app/api/routes/payments.py)",
+      "Bash(.venv/bin/python -c \"from app.main import app; print\\('routes:', len\\(app.routes\\)\\)\")"
     ],
     "additionalDirectories": [
       "/Users/danhnguyen/Desktop/freelancers/pom_order/.claude/skills",

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useParams } from 'react-router-dom'
 
+import { IntegerCurrencyInput } from '@/components/IntegerCurrencyInput'
 import { Modal } from '@/components/Modal'
 import { StatusBadge } from '@/components/StatusBadge'
 import { useNotify } from '@/components/Toast'
@@ -118,6 +119,33 @@ export function OrderDetailPage() {
       await load()
     } catch (err) {
       notify.error(err instanceof ApiException ? err.message : t('payment.record_error'))
+    }
+  }
+
+  async function updatePayment(
+    paymentId: string,
+    patch: { amount_vnd?: string; type?: PaymentType; notes?: string | null },
+  ) {
+    if (!order) return
+    try {
+      await apiClient.patch<Payment>(
+        `/api/v1/orders/${order.id}/payments/${paymentId}`,
+        patch,
+      )
+      await load()
+    } catch (err) {
+      notify.error(err instanceof ApiException ? err.message : t('payment.update_error'))
+    }
+  }
+
+  async function deletePayment(paymentId: string) {
+    if (!order) return
+    if (!window.confirm(t('payment.delete_confirm'))) return
+    try {
+      await apiClient.delete(`/api/v1/orders/${order.id}/payments/${paymentId}`)
+      await load()
+    } catch (err) {
+      notify.error(err instanceof ApiException ? err.message : t('payment.delete_error'))
     }
   }
 
@@ -333,7 +361,13 @@ export function OrderDetailPage() {
         </section>
       )}
 
-      <PaymentRecorder payments={payments} onRecord={recordPayment} dateLocale={dateLocale} />
+      <PaymentRecorder
+        payments={payments}
+        onRecord={recordPayment}
+        onUpdate={updatePayment}
+        onDelete={deletePayment}
+        dateLocale={dateLocale}
+      />
 
       <ProblemReasonModal
         open={problemModalOpen}
@@ -486,10 +520,17 @@ function Row({
 function PaymentRecorder({
   payments,
   onRecord,
+  onUpdate,
+  onDelete,
   dateLocale,
 }: {
   payments: Payment[]
   onRecord: (amount: string, type: PaymentType, notes: string) => Promise<void>
+  onUpdate: (
+    paymentId: string,
+    patch: { amount_vnd?: string; type?: PaymentType; notes?: string | null },
+  ) => Promise<void>
+  onDelete: (paymentId: string) => Promise<void>
   dateLocale: string
 }) {
   const { t } = useTranslation()
@@ -497,6 +538,7 @@ function PaymentRecorder({
   const [type, setType] = useState<PaymentType>('deposit')
   const [notes, setNotes] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
 
   const typeLabels: Record<PaymentType, string> = {
     deposit: t('payment.type_deposit'),
@@ -527,13 +569,12 @@ function PaymentRecorder({
           <label htmlFor="pay-amount" className="block text-xs text-fg-muted mb-1">
             {t('payment.amount')}
           </label>
-          <input
+          <IntegerCurrencyInput
             id="pay-amount"
-            type="number"
             required
             value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            placeholder="100000"
+            onChange={setAmount}
+            placeholder="100.000"
             className="w-full px-3 py-1.5 border border-border rounded-md focus:outline-none focus:border-accent text-sm tabular"
           />
         </div>
@@ -580,30 +621,153 @@ function PaymentRecorder({
         <p className="text-sm text-fg-subtle">{t('payment.no_payments')}</p>
       ) : (
         <div className="bg-surface border border-border rounded-lg overflow-x-auto">
-          <table className="w-full text-sm min-w-[480px]">
+          <table className="w-full text-sm min-w-[560px]">
             <thead className="bg-surface-2 text-xs font-semibold uppercase text-fg-muted">
               <tr>
                 <th className="text-left py-2 px-3">{t('payment.table_time')}</th>
                 <th className="text-left py-2 px-3">{t('payment.table_type')}</th>
                 <th className="text-right py-2 px-3">{t('payment.table_amount')}</th>
                 <th className="text-left py-2 px-3">{t('payment.table_notes')}</th>
+                <th className="text-right py-2 px-3 w-1">{t('common.actions')}</th>
               </tr>
             </thead>
             <tbody>
-              {payments.map((p) => (
-                <tr key={p.id} className="border-t border-border">
-                  <td className="py-2 px-3 text-xs text-fg-muted tabular">
-                    {new Date(p.paid_at).toLocaleString(dateLocale)}
-                  </td>
-                  <td className="py-2 px-3">{typeLabels[p.type]}</td>
-                  <td className="py-2 px-3 text-right tabular">{formatVnd(p.amount_vnd)}</td>
-                  <td className="py-2 px-3 text-fg-muted">{p.notes ?? '—'}</td>
-                </tr>
-              ))}
+              {payments.map((p) =>
+                editingId === p.id ? (
+                  <PaymentEditRow
+                    key={p.id}
+                    payment={p}
+                    typeLabels={typeLabels}
+                    dateLocale={dateLocale}
+                    onSave={async (patch) => {
+                      await onUpdate(p.id, patch)
+                      setEditingId(null)
+                    }}
+                    onCancel={() => setEditingId(null)}
+                  />
+                ) : (
+                  <tr key={p.id} className="border-t border-border">
+                    <td className="py-2 px-3 text-xs text-fg-muted tabular">
+                      {new Date(p.paid_at).toLocaleString(dateLocale)}
+                    </td>
+                    <td className="py-2 px-3">{typeLabels[p.type]}</td>
+                    <td className="py-2 px-3 text-right tabular">{formatVnd(p.amount_vnd)}</td>
+                    <td className="py-2 px-3 text-fg-muted">{p.notes ?? '—'}</td>
+                    <td className="py-2 px-3 text-right whitespace-nowrap">
+                      <button
+                        type="button"
+                        onClick={() => setEditingId(p.id)}
+                        className="text-xs text-accent hover:underline px-1"
+                      >
+                        {t('common.edit')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void onDelete(p.id)}
+                        className="text-xs text-fg-subtle hover:text-danger px-1"
+                      >
+                        {t('common.delete')}
+                      </button>
+                    </td>
+                  </tr>
+                ),
+              )}
             </tbody>
           </table>
         </div>
       )}
     </section>
+  )
+}
+
+function PaymentEditRow({
+  payment,
+  typeLabels,
+  dateLocale,
+  onSave,
+  onCancel,
+}: {
+  payment: Payment
+  typeLabels: Record<PaymentType, string>
+  dateLocale: string
+  onSave: (patch: {
+    amount_vnd?: string
+    type?: PaymentType
+    notes?: string | null
+  }) => Promise<void>
+  onCancel: () => void
+}) {
+  const { t } = useTranslation()
+  const [amount, setAmount] = useState(String(payment.amount_vnd))
+  const [type, setType] = useState<PaymentType>(payment.type)
+  const [notes, setNotes] = useState(payment.notes ?? '')
+  const [submitting, setSubmitting] = useState(false)
+
+  async function handleSave() {
+    if (!amount) return
+    setSubmitting(true)
+    try {
+      await onSave({
+        amount_vnd: amount,
+        type,
+        notes: notes.trim() || null,
+      })
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <tr className="border-t border-border bg-surface-2">
+      <td className="py-2 px-3 text-xs text-fg-muted tabular">
+        {new Date(payment.paid_at).toLocaleString(dateLocale)}
+      </td>
+      <td className="py-2 px-3">
+        <select
+          value={type}
+          onChange={(e) => setType(e.target.value as PaymentType)}
+          className="w-full px-2 py-1 border border-border rounded text-sm bg-surface"
+        >
+          {(['deposit', 'balance', 'refund', 'adjustment'] as PaymentType[]).map((tt) => (
+            <option key={tt} value={tt}>
+              {typeLabels[tt]}
+            </option>
+          ))}
+        </select>
+      </td>
+      <td className="py-2 px-3">
+        <IntegerCurrencyInput
+          required
+          value={amount}
+          onChange={setAmount}
+          className="w-full px-2 py-1 border border-border rounded text-sm tabular text-right"
+        />
+      </td>
+      <td className="py-2 px-3">
+        <input
+          type="text"
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          className="w-full px-2 py-1 border border-border rounded text-sm"
+        />
+      </td>
+      <td className="py-2 px-3 text-right whitespace-nowrap">
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={submitting || !amount}
+          className="text-xs font-semibold text-accent hover:underline px-1 disabled:opacity-50"
+        >
+          {submitting ? t('common.loading') : t('common.save')}
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="text-xs text-fg-subtle hover:text-fg px-1"
+        >
+          {t('common.cancel')}
+        </button>
+      </td>
+    </tr>
   )
 }

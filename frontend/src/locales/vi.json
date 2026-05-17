@@ -243,7 +243,10 @@
     "type_balance": "Tất toán",
     "type_refund": "Hoàn tiền",
     "type_adjustment": "Điều chỉnh",
-    "record_error": "Lỗi ghi nhận thanh toán"
+    "record_error": "Lỗi ghi nhận thanh toán",
+    "update_error": "Lỗi sửa thanh toán",
+    "delete_error": "Lỗi xóa thanh toán",
+    "delete_confirm": "Xóa giao dịch này? Hành động không thể hoàn tác."
   },
   "customer": {
     "title": "Khách hàng",
