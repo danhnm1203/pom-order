@@ -1,4 +1,9 @@
-"""Unit tests for order status state machine."""
+"""Unit tests for order status transitions.
+
+Policy (see services/order_status.py): any → any allowed except no-op.
+Operators frequently mis-tap and need to revert; audit log captures changes
+so opening transitions up is safer than blocking corrections.
+"""
 
 import pytest
 
@@ -12,19 +17,29 @@ from app.services.order_status import (
 
 
 class TestValidTransitions:
-    """Happy path: documented valid transitions."""
+    """Every distinct (from, to) pair is valid."""
 
     @pytest.mark.parametrize(
         "from_status, to_status",
         [
+            # Forward lifecycle
             (OrderStatus.PENDING, OrderStatus.ORDERED),
             (OrderStatus.ORDERED, OrderStatus.IN_TRANSIT),
             (OrderStatus.IN_TRANSIT, OrderStatus.ARRIVED),
             (OrderStatus.ARRIVED, OrderStatus.DELIVERED),
             (OrderStatus.DELIVERED, OrderStatus.COMPLETED),
-            (OrderStatus.PENDING, OrderStatus.CANCELLED),
+            # Skip-ahead (previously blocked, now allowed)
+            (OrderStatus.PENDING, OrderStatus.COMPLETED),
+            (OrderStatus.PENDING, OrderStatus.DELIVERED),
+            # Backward (mis-click recovery — the main reason for opening up)
+            (OrderStatus.DELIVERED, OrderStatus.ARRIVED),
+            (OrderStatus.COMPLETED, OrderStatus.PENDING),
+            # Cancelled is no longer terminal
+            (OrderStatus.CANCELLED, OrderStatus.ORDERED),
+            (OrderStatus.CANCELLED, OrderStatus.PENDING),
+            # Problem ↔ anything
             (OrderStatus.ORDERED, OrderStatus.PROBLEM),
-            (OrderStatus.PROBLEM, OrderStatus.ORDERED),  # recover from problem
+            (OrderStatus.PROBLEM, OrderStatus.ORDERED),
             (OrderStatus.PROBLEM, OrderStatus.CANCELLED),
         ],
     )
@@ -37,7 +52,7 @@ class TestValidTransitions:
         "from_status, to_status",
         [
             (OrderStatus.PENDING, OrderStatus.ORDERED),
-            (OrderStatus.ORDERED, OrderStatus.IN_TRANSIT),
+            (OrderStatus.COMPLETED, OrderStatus.PENDING),
         ],
     )
     def test_validate_transition_no_raise(
@@ -47,50 +62,32 @@ class TestValidTransitions:
 
 
 class TestInvalidTransitions:
-    """Forbidden transitions raise 422."""
+    """Only no-op (same → same) is rejected."""
 
-    @pytest.mark.parametrize(
-        "from_status, to_status",
-        [
-            # Cannot jump from pending straight to completed
-            (OrderStatus.PENDING, OrderStatus.COMPLETED),
-            # Cannot go backwards from completed to pending
-            (OrderStatus.COMPLETED, OrderStatus.PENDING),
-            # Cancelled is terminal — no escape
-            (OrderStatus.CANCELLED, OrderStatus.ORDERED),
-            (OrderStatus.CANCELLED, OrderStatus.PENDING),
-            # No-op transition not allowed
-            (OrderStatus.PENDING, OrderStatus.PENDING),
-        ],
-    )
-    def test_invalid_transition_returns_false(
-        self, from_status: OrderStatus, to_status: OrderStatus
-    ) -> None:
-        assert is_valid_transition(from_status, to_status) is False
+    @pytest.mark.parametrize("status", list(OrderStatus))
+    def test_noop_is_rejected(self, status: OrderStatus) -> None:
+        assert is_valid_transition(status, status) is False
 
-    def test_validate_transition_raises_422(self) -> None:
+    def test_validate_noop_raises_422(self) -> None:
         with pytest.raises(ApiError) as exc_info:
-            validate_transition(OrderStatus.PENDING, OrderStatus.COMPLETED)
+            validate_transition(OrderStatus.PENDING, OrderStatus.PENDING)
         assert exc_info.value.status_code == 422
         assert exc_info.value.code == "invalid_status_transition"
         assert "pending" in exc_info.value.message
-        assert "completed" in exc_info.value.message
 
 
 class TestAllowedNextStatuses:
-    """Helper for frontend status buttons."""
+    """Helper for frontend status buttons: returns every other status."""
 
-    def test_pending_can_transition_to_three_statuses(self) -> None:
-        result = allowed_next_statuses(OrderStatus.PENDING)
-        assert OrderStatus.ORDERED in result
-        assert OrderStatus.CANCELLED in result
-        assert OrderStatus.PROBLEM in result
-        assert OrderStatus.COMPLETED not in result
+    @pytest.mark.parametrize("from_status", list(OrderStatus))
+    def test_returns_every_other_status(self, from_status: OrderStatus) -> None:
+        result = allowed_next_statuses(from_status)
+        assert from_status not in result
+        assert len(result) == len(list(OrderStatus)) - 1
 
-    def test_cancelled_is_terminal(self) -> None:
-        result = allowed_next_statuses(OrderStatus.CANCELLED)
-        assert result == []
-
-    def test_problem_can_recover_to_many_statuses(self) -> None:
-        result = allowed_next_statuses(OrderStatus.PROBLEM)
-        assert len(result) >= 4  # can resume to most non-pending states
+    def test_returns_in_lifecycle_order(self) -> None:
+        # Enum-declaration order is the lifecycle: pending → ordered → ... → cancelled.
+        # Removing one preserves the remaining order.
+        result = allowed_next_statuses(OrderStatus.ARRIVED)
+        expected = [s for s in OrderStatus if s != OrderStatus.ARRIVED]
+        assert result == expected

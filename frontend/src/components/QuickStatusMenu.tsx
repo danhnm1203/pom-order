@@ -5,16 +5,17 @@ import { StatusBadge } from '@/components/StatusBadge'
 import { apiClient, ApiException } from '@/lib/api-client'
 import { type Order, type OrderStatus, type ProblemReason } from '@/types/api'
 
-const NEXT_STATUS: Record<OrderStatus, OrderStatus[]> = {
-  pending: ['ordered', 'cancelled', 'problem'],
-  ordered: ['in_transit', 'cancelled', 'problem'],
-  in_transit: ['arrived', 'problem', 'cancelled'],
-  arrived: ['delivered', 'problem', 'cancelled'],
-  delivered: ['completed', 'problem'],
-  completed: ['problem'],
-  problem: ['ordered', 'in_transit', 'arrived', 'delivered', 'completed', 'cancelled'],
-  cancelled: [],
-}
+/** All statuses in lifecycle order — see OrderDetailPage for rationale. */
+const ALL_STATUSES: OrderStatus[] = [
+  'pending',
+  'ordered',
+  'in_transit',
+  'arrived',
+  'delivered',
+  'completed',
+  'problem',
+  'cancelled',
+]
 
 const PROBLEM_REASON_KEYS: ProblemReason[] = [
   'out_of_stock',
@@ -41,7 +42,7 @@ export function QuickStatusMenu({ order, onUpdate }: QuickStatusMenuProps) {
   const [submitting, setSubmitting] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
-  const nextOptions = NEXT_STATUS[order.status]
+  const nextOptions = ALL_STATUSES.filter((s) => s !== order.status)
 
   useEffect(() => {
     if (!open) return

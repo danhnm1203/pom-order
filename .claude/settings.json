@@ -98,7 +98,8 @@
       "Bash(.venv/bin/python -c \"from app.main import app; print\\('app imports OK, routes:', len\\(app.routes\\)\\)\")",
       "Bash(.venv/bin/python -c ' *)",
       "Bash(python -m py_compile app/schemas/payment.py app/services/payment.py app/api/routes/payments.py)",
-      "Bash(.venv/bin/python -c \"from app.main import app; print\\('routes:', len\\(app.routes\\)\\)\")"
+      "Bash(.venv/bin/python -c \"from app.main import app; print\\('routes:', len\\(app.routes\\)\\)\")",
+      "Bash(.venv/bin/python -m pytest tests/unit/test_order_status.py -q)"
     ],
     "additionalDirectories": [
       "/Users/danhnguyen/Desktop/freelancers/pom_order/.claude/skills",

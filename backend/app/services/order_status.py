@@ -1,8 +1,14 @@
-"""Order status state machine.
+"""Order status transitions.
 
-Enforces valid status transitions. Used by:
+Used by:
   - PATCH /api/v1/orders/{id}/status
   - Audit log entry creation
+
+Policy: any status → any other status is allowed. The previous state-machine
+restricted forward-only progression, but in practice operators often mis-tap
+and need to roll back (e.g. accidentally marked 'delivered' → revert to
+'arrived'). Audit log captures every change for traceability, so opening up
+transitions is safer than blocking corrections.
 """
 
 from __future__ import annotations
@@ -11,46 +17,21 @@ from app.exceptions import ApiError
 from app.models.order import OrderStatus
 
 
-# Allowed transitions: from -> set of valid next statuses
-_TRANSITIONS: dict[OrderStatus, set[OrderStatus]] = {
-    OrderStatus.PENDING: {OrderStatus.ORDERED, OrderStatus.CANCELLED, OrderStatus.PROBLEM},
-    OrderStatus.ORDERED: {OrderStatus.IN_TRANSIT, OrderStatus.CANCELLED, OrderStatus.PROBLEM},
-    OrderStatus.IN_TRANSIT: {OrderStatus.ARRIVED, OrderStatus.PROBLEM, OrderStatus.CANCELLED},
-    OrderStatus.ARRIVED: {OrderStatus.DELIVERED, OrderStatus.PROBLEM, OrderStatus.CANCELLED},
-    OrderStatus.DELIVERED: {OrderStatus.COMPLETED, OrderStatus.PROBLEM},
-    OrderStatus.COMPLETED: {OrderStatus.PROBLEM},  # only re-open if discovered later
-    OrderStatus.PROBLEM: {
-        OrderStatus.ORDERED,
-        OrderStatus.IN_TRANSIT,
-        OrderStatus.ARRIVED,
-        OrderStatus.DELIVERED,
-        OrderStatus.COMPLETED,
-        OrderStatus.CANCELLED,
-    },
-    OrderStatus.CANCELLED: set(),  # terminal
-}
-
-
 def is_valid_transition(from_status: OrderStatus, to_status: OrderStatus) -> bool:
-    """Check whether a status transition is permitted."""
-    if from_status == to_status:
-        return False  # noop transition not allowed
-    return to_status in _TRANSITIONS.get(from_status, set())
+    """Reject only no-op transitions. Any other change is permitted."""
+    return from_status != to_status
 
 
 def validate_transition(from_status: OrderStatus, to_status: OrderStatus) -> None:
-    """Raise ApiError(422) if the transition is invalid."""
+    """Raise ApiError(422) if the transition is a no-op."""
     if not is_valid_transition(from_status, to_status):
         raise ApiError(
             422,
             "invalid_status_transition",
-            f"Cannot transition from '{from_status.value}' to '{to_status.value}'",
+            f"Order is already in status '{from_status.value}'",
         )
 
 
 def allowed_next_statuses(from_status: OrderStatus) -> list[OrderStatus]:
-    """Return the list of statuses an order in `from_status` can move to.
-
-    Useful for the frontend to render valid status buttons.
-    """
-    return sorted(_TRANSITIONS.get(from_status, set()), key=lambda s: s.value)
+    """Every status except the current one, in enum (lifecycle) order."""
+    return [s for s in OrderStatus if s != from_status]

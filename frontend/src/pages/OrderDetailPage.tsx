@@ -16,16 +16,19 @@ import {
   type ProblemReason,
 } from '@/types/api'
 
-const NEXT_STATUS: Record<OrderStatus, OrderStatus[]> = {
-  pending: ['ordered', 'cancelled', 'problem'],
-  ordered: ['in_transit', 'cancelled', 'problem'],
-  in_transit: ['arrived', 'problem', 'cancelled'],
-  arrived: ['delivered', 'problem', 'cancelled'],
-  delivered: ['completed', 'problem'],
-  completed: ['problem'],
-  problem: ['ordered', 'in_transit', 'arrived', 'delivered', 'completed', 'cancelled'],
-  cancelled: [],
-}
+/** All statuses in lifecycle order. Operator can pick any (except current) —
+ *  no state machine, so mis-clicks can be reverted (e.g. wrong 'delivered'
+ *  → back to 'arrived'). Audit log records every change. */
+const ALL_STATUSES: OrderStatus[] = [
+  'pending',
+  'ordered',
+  'in_transit',
+  'arrived',
+  'delivered',
+  'completed',
+  'problem',
+  'cancelled',
+]
 
 /** Map contact channel to a clickable URL where it makes sense. */
 function contactHref(channel: string, value: string): string {
@@ -256,26 +259,24 @@ export function OrderDetailPage() {
         </div>
       )}
 
-      {/* Status transitions */}
-      {NEXT_STATUS[order.status].length > 0 && (
-        <section>
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-fg-muted mb-2">
-            {t('order.status_update_label')}
-          </h2>
-          <div className="flex flex-wrap gap-2">
-            {NEXT_STATUS[order.status].map((next) => (
-              <button
-                key={next}
-                type="button"
-                onClick={() => onStatusButtonClick(next)}
-                className="px-3 py-1.5 rounded-md text-sm bg-surface-2 text-fg hover:bg-border transition-colors"
-              >
-                → {t(`status.${next}`)}
-              </button>
-            ))}
-          </div>
-        </section>
-      )}
+      {/* Status transitions — list every status so operator can fix mis-clicks */}
+      <section>
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-fg-muted mb-2">
+          {t('order.status_update_label')}
+        </h2>
+        <div className="flex flex-wrap gap-2">
+          {ALL_STATUSES.filter((s) => s !== order.status).map((next) => (
+            <button
+              key={next}
+              type="button"
+              onClick={() => onStatusButtonClick(next)}
+              className="px-3 py-1.5 rounded-md text-sm bg-surface-2 text-fg hover:bg-border transition-colors"
+            >
+              → {t(`status.${next}`)}
+            </button>
+          ))}
+        </div>
+      </section>
 
       {/* Items */}
       <section>
