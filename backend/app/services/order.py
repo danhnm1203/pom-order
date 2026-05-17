@@ -149,16 +149,17 @@ async def list_orders(
     """
     from sqlalchemy import or_
 
-    # List view does NOT eager-load customer.contacts — instead it relies on
-    # the denormalized `customers.primary_phone` column (kept in sync by a DB
-    # trigger). Saves one round trip per list page.
+    # Eager-load customer.contacts too: OrderResponse → CustomerListItem schema
+    # includes `contacts`, so Pydantic accesses the attribute during validation.
+    # Without selectinload it triggers async lazy-load outside a greenlet (500).
+    # Cost: one extra round trip per list page (selectinload, not N+1).
     query = (
         select(Order)
         .where(Order.shop_id == shop_id)
         .where(Order.deleted_at.is_(None))
         .options(
             selectinload(Order.items),
-            selectinload(Order.customer),
+            selectinload(Order.customer).selectinload(Customer.contacts),
         )
         .order_by(Order.created_at.desc())
         .limit(limit)

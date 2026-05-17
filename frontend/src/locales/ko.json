@@ -30,6 +30,7 @@
     "orders": "주문",
     "new_order": "새 주문",
     "customers": "고객",
+    "products": "상품",
     "fx_rate": "환율",
     "settings": "설정",
     "logout": "로그아웃",
@@ -270,6 +271,34 @@
     "no_search_results": "검색 결과 없음",
     "saving": "저장 중...",
     "save_customer": "고객 저장"
+  },
+  "product": {
+    "title": "상품",
+    "add_new": "+ 새 상품",
+    "name": "상품명",
+    "name_placeholder": "상품명 (VI) *",
+    "name_kr": "한국어 이름",
+    "name_kr_placeholder": "한국어 이름",
+    "brand": "브랜드",
+    "brand_placeholder": "예: Sulwhasoo",
+    "url": "상품 링크",
+    "base_price_krw": "기준 KRW",
+    "save_product": "상품 저장",
+    "saving": "저장 중...",
+    "create_error": "상품 생성 실패",
+    "search_placeholder": "이름 / 브랜드 / 한국어 이름으로 검색...",
+    "combobox_placeholder": "기존 상품 선택 또는 새로 만들기...",
+    "no_search_results": "검색 결과 없음",
+    "empty_state": "상품이 없습니다. 첫 상품을 추가하세요.",
+    "no_pick": "(카탈로그에서 선택 안 함)",
+    "create_new_with_name": "새 상품 만들기: \"{{name}}\"",
+    "pick_label": "상품 선택",
+    "stats": {
+      "total": "주문 필요",
+      "ordered": "주문 완료",
+      "pending": "남은 수량",
+      "delivered": "배송 완료"
+    }
   },
   "fx": {
     "title": "환율 KRW → VND",

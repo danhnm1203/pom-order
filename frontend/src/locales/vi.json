@@ -30,6 +30,7 @@
     "orders": "Đơn hàng",
     "new_order": "Tạo đơn",
     "customers": "Khách hàng",
+    "products": "Sản phẩm",
     "fx_rate": "Tỷ giá",
     "settings": "Cài đặt",
     "logout": "Đăng xuất",
@@ -270,6 +271,34 @@
     "no_search_results": "Không tìm thấy khách hàng.",
     "saving": "Đang lưu...",
     "save_customer": "Lưu khách"
+  },
+  "product": {
+    "title": "Sản phẩm",
+    "add_new": "+ Sản phẩm mới",
+    "name": "Tên sản phẩm",
+    "name_placeholder": "Tên sản phẩm (VI) *",
+    "name_kr": "Tên Hàn",
+    "name_kr_placeholder": "한국어 이름",
+    "brand": "Brand",
+    "brand_placeholder": "VD: Sulwhasoo",
+    "url": "Link sản phẩm",
+    "base_price_krw": "Giá KRW gợi ý",
+    "save_product": "Lưu sản phẩm",
+    "saving": "Đang lưu...",
+    "create_error": "Lỗi tạo sản phẩm",
+    "search_placeholder": "Tìm theo tên / brand / tên Hàn...",
+    "combobox_placeholder": "Chọn sản phẩm có sẵn hoặc tạo mới...",
+    "no_search_results": "Không tìm thấy sản phẩm.",
+    "empty_state": "Chưa có sản phẩm. Thêm sản phẩm đầu tiên.",
+    "no_pick": "(Không chọn sản phẩm từ catalog)",
+    "create_new_with_name": "Tạo sản phẩm mới: \"{{name}}\"",
+    "pick_label": "Chọn sản phẩm",
+    "stats": {
+      "total": "Cần đặt",
+      "ordered": "Đã đặt",
+      "pending": "Còn lại",
+      "delivered": "Đã giao"
+    }
   },
   "fx": {
     "title": "Tỷ giá KRW → VND",

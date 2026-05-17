@@ -85,11 +85,17 @@ async def list_customers(
     search: str | None = None,
 ) -> list[Customer]:
     """List customers (active only), optionally filtered by name."""
+    # Eager-load contacts + addresses: CustomerResponse references both, so
+    # Pydantic accesses the attributes during validation. Without selectinload
+    # it triggers async lazy-load outside a greenlet (500).
     query = (
         select(Customer)
         .where(Customer.shop_id == shop_id)
         .where(Customer.deleted_at.is_(None))
-        .options(selectinload(Customer.contacts))
+        .options(
+            selectinload(Customer.contacts),
+            selectinload(Customer.addresses),
+        )
         .order_by(Customer.created_at.desc())
         .limit(limit)
         .offset(offset)

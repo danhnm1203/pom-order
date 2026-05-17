@@ -15,6 +15,7 @@ from app.api.routes import (
     health,
     orders,
     payments,
+    products,
     public,
     scrape,
     shop_settings,
@@ -60,6 +61,7 @@ def create_app() -> FastAPI:
 
     # Admin (auth required via dependencies inside each route)
     app.include_router(customers.router, prefix="/api/v1/customers", tags=["customers"])
+    app.include_router(products.router, prefix="/api/v1/products", tags=["products"])
     app.include_router(orders.router, prefix="/api/v1/orders", tags=["orders"])
     app.include_router(payments.router, prefix="/api/v1/orders", tags=["payments"])
     app.include_router(fx_rates.router, prefix="/api/v1/fx-rates", tags=["fx-rates"])

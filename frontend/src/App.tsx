@@ -10,6 +10,7 @@ import { LookupPage } from '@/pages/LookupPage'
 import { NewOrderPage } from '@/pages/NewOrderPage'
 import { OrderDetailPage } from '@/pages/OrderDetailPage'
 import { OrderListPage } from '@/pages/OrderListPage'
+import { ProductListPage } from '@/pages/ProductListPage'
 import { PublicOrderPage } from '@/pages/PublicOrderPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 
@@ -35,6 +36,7 @@ export default function App() {
         <Route path="orders/new" element={<NewOrderPage />} />
         <Route path="orders/:id" element={<OrderDetailPage />} />
         <Route path="customers" element={<CustomerListPage />} />
+        <Route path="products" element={<ProductListPage />} />
         <Route path="fx" element={<FxRatePage />} />
         <Route path="settings" element={<SettingsPage />} />
       </Route>

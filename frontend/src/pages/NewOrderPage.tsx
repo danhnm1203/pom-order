@@ -4,15 +4,19 @@ import { useNavigate } from 'react-router-dom'
 
 import { CustomerCombobox } from '@/components/CustomerCombobox'
 import { CustomerQuickAdd } from '@/components/CustomerQuickAdd'
+import { IntegerCurrencyInput } from '@/components/IntegerCurrencyInput'
 import { Modal } from '@/components/Modal'
+import { ProductCombobox } from '@/components/ProductCombobox'
+import { ProductQuickAdd } from '@/components/ProductQuickAdd'
 import { useNotify } from '@/components/Toast'
 import { apiClient, ApiException, type ScrapedProduct } from '@/lib/api-client'
 import { formatVnd } from '@/lib/utils'
-import type { Customer, FxRate, Order } from '@/types/api'
+import type { Customer, FxRate, Order, Product } from '@/types/api'
 
 const FX_STALE_THRESHOLD_DAYS = 7
 
 interface DraftItem {
+  product_id: string // '' = no catalog product picked (snapshot-only)
   product_name_snapshot: string
   product_url_snapshot: string
   brand_name_snapshot: string
@@ -23,6 +27,7 @@ interface DraftItem {
 }
 
 const EMPTY_ITEM: DraftItem = {
+  product_id: '',
   product_name_snapshot: '',
   product_url_snapshot: '',
   brand_name_snapshot: '',
@@ -48,9 +53,14 @@ export function NewOrderPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [importOpen, setImportOpen] = useState(false)
+  const [products, setProducts] = useState<Product[]>([])
+  // Per-row inline "create new product" state: maps row index → seed name.
+  // Absent / undefined = quick-add not shown for that row.
+  const [quickAddRow, setQuickAddRow] = useState<{ idx: number; seed: string } | null>(null)
 
   useEffect(() => {
     void apiClient.get<Customer[]>('/api/v1/customers?limit=100').then(setCustomers)
+    void apiClient.get<Product[]>('/api/v1/products?limit=500').then(setProducts)
     apiClient
       .get<FxRate>('/api/v1/fx-rates/current')
       .then((r) => {
@@ -91,6 +101,7 @@ export function NewOrderPage() {
         international_shipping_vnd: intlShipping,
         notes: notes || null,
         items: validItems.map((i) => ({
+          product_id: i.product_id || null,
           product_name_snapshot: i.product_name_snapshot,
           product_url_snapshot: i.product_url_snapshot || null,
           brand_name_snapshot: i.brand_name_snapshot || null,
@@ -119,6 +130,28 @@ export function NewOrderPage() {
     setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)))
   }
 
+  /** Apply a picked product to a row: store product_id + auto-fill snapshot
+   *  fields. Don't overwrite snapshot fields the operator already filled in. */
+  function pickProduct(idx: number, product: Product | null) {
+    setItems((prev) =>
+      prev.map((it, i) => {
+        if (i !== idx) return it
+        if (!product) {
+          return { ...it, product_id: '' }
+        }
+        return {
+          ...it,
+          product_id: product.id,
+          product_name_snapshot: it.product_name_snapshot || product.name,
+          brand_name_snapshot: it.brand_name_snapshot || product.brand_name || '',
+          product_url_snapshot: it.product_url_snapshot || product.url || '',
+          unit_cost_krw:
+            it.unit_cost_krw || (product.base_price_krw ?? ''),
+        }
+      }),
+    )
+  }
+
   function appendScrapedItems(scraped: ScrapedProduct[]) {
     if (scraped.length === 0) return
     setItems((prev) => {
@@ -130,6 +163,7 @@ export function NewOrderPage() {
         !prev[0]?.unit_sale_price_vnd
       const newItems: DraftItem[] = scraped.map((s) => ({
         ...EMPTY_ITEM,
+        product_id: '',
         product_name_snapshot: s.name,
         product_url_snapshot: s.source_url,
         brand_name_snapshot: s.brand ?? '',
@@ -263,6 +297,25 @@ export function NewOrderPage() {
                 <legend className="sr-only">
                   {t('order.items')} #{idx + 1}
                 </legend>
+                <ItemField label={t('product.pick_label')} className="md:col-span-6">
+                  <ProductCombobox
+                    products={products}
+                    value={item.product_id}
+                    onChange={(_id, product) => pickProduct(idx, product)}
+                    onCreateNew={(seed) => setQuickAddRow({ idx, seed })}
+                  />
+                  {quickAddRow?.idx === idx && (
+                    <ProductQuickAdd
+                      seedName={quickAddRow.seed}
+                      onCreated={(p) => {
+                        setProducts((prev) => [p, ...prev])
+                        pickProduct(idx, p)
+                        setQuickAddRow(null)
+                      }}
+                      onCancel={() => setQuickAddRow(null)}
+                    />
+                  )}
+                </ItemField>
                 <ItemField label={t('order.items_table.brand')} className="md:col-span-1">
                   <input
                     type="text"
@@ -297,24 +350,22 @@ export function NewOrderPage() {
                   />
                 </ItemField>
                 <ItemField label={t('order.items_table.krw_cost')} required>
-                  <input
-                    type="number"
+                  <IntegerCurrencyInput
                     aria-label={t('order.items_table.krw_cost')}
                     placeholder={t('order.items_table.krw_cost')}
                     required
                     value={item.unit_cost_krw}
-                    onChange={(e) => updateItem(idx, { unit_cost_krw: e.target.value })}
+                    onChange={(v) => updateItem(idx, { unit_cost_krw: v })}
                     className="w-full px-2 py-1.5 border border-border rounded-md text-sm tabular focus:outline-none focus:border-accent"
                   />
                 </ItemField>
                 <ItemField label={t('order.items_table.vnd_sale_per_unit')} required>
-                  <input
-                    type="number"
+                  <IntegerCurrencyInput
                     aria-label={t('order.items_table.vnd_sale_per_unit')}
                     placeholder={t('order.items_table.vnd_sale_per_unit')}
                     required
                     value={item.unit_sale_price_vnd}
-                    onChange={(e) => updateItem(idx, { unit_sale_price_vnd: e.target.value })}
+                    onChange={(v) => updateItem(idx, { unit_sale_price_vnd: v })}
                     className="w-full px-2 py-1.5 border border-border rounded-md text-sm tabular focus:outline-none focus:border-accent"
                   />
                 </ItemField>
@@ -356,19 +407,17 @@ export function NewOrderPage() {
         <section className="bg-surface border border-border rounded-lg p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium mb-1.5">{t('order.korean_shipping')}</label>
-            <input
-              type="number"
+            <IntegerCurrencyInput
               value={koreanShipping}
-              onChange={(e) => setKoreanShipping(e.target.value)}
+              onChange={setKoreanShipping}
               className="w-full px-3 py-2 border border-border rounded-md text-sm tabular"
             />
           </div>
           <div>
             <label className="block text-sm font-medium mb-1.5">{t('order.intl_shipping')}</label>
-            <input
-              type="number"
+            <IntegerCurrencyInput
               value={intlShipping}
-              onChange={(e) => setIntlShipping(e.target.value)}
+              onChange={setIntlShipping}
               className="w-full px-3 py-2 border border-border rounded-md text-sm tabular"
             />
           </div>

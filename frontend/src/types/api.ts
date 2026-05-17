@@ -140,6 +140,30 @@ export interface Customer {
   addresses: CustomerAddress[]
 }
 
+export interface Product {
+  id: string
+  shop_id: string
+  brand_id: string | null
+  brand_name: string | null
+  name: string
+  name_kr: string | null
+  url: string | null
+  base_price_krw: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface ProductStats {
+  total_qty: string
+  ordered_qty: string
+  delivered_qty: string
+  pending_qty: string
+}
+
+export interface ProductWithStats extends Product {
+  stats: ProductStats
+}
+
 export interface FxRate {
   id: string
   shop_id: string
