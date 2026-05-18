@@ -105,7 +105,9 @@
       "Bash(python -m py_compile app/api/routes/public.py)",
       "Bash(python -m py_compile app/models/catalog.py app/schemas/catalog.py app/services/product.py)",
       "Bash(python -m py_compile app/models/catalog.py app/schemas/catalog.py app/services/product.py app/api/routes/order_items.py app/main.py)",
-      "Bash(python -m py_compile app/models/order.py app/schemas/order.py app/services/order.py app/services/customer.py app/services/product.py app/api/routes/dashboard.py app/api/routes/orders.py)"
+      "Bash(python -m py_compile app/models/order.py app/schemas/order.py app/services/order.py app/services/customer.py app/services/product.py app/api/routes/dashboard.py app/api/routes/orders.py)",
+      "Bash(python -m py_compile app/services/order.py app/api/routes/orders.py app/schemas/order.py)",
+      "Bash(.venv/bin/python -m pytest tests/ -q)"
     ],
     "additionalDirectories": [
       "/Users/danhnguyen/Desktop/freelancers/pom_order/.claude/skills",

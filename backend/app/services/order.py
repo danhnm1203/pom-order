@@ -123,6 +123,135 @@ async def create_order(
     return await get_order(db, shop_id=shop_id, order_id=order.id)
 
 
+async def _validate_customer_in_shop(
+    db: AsyncSession, *, shop_id: UUID, customer_id: UUID
+) -> None:
+    """Raise 404 if `customer_id` doesn't belong to `shop_id` (or is soft-deleted)."""
+    from app.models.customer import Customer  # local to avoid circular
+
+    res = await db.execute(
+        select(Customer.id)
+        .where(Customer.id == customer_id)
+        .where(Customer.shop_id == shop_id)
+        .where(Customer.deleted_at.is_(None))
+    )
+    if res.scalar_one_or_none() is None:
+        raise ApiError(404, "customer_not_found", "Khách hàng không thuộc shop này")
+
+
+def _apply_order_scalar_updates(order: Order, data: "OrderUpdate") -> dict:
+    """Apply non-item field updates onto `order`. Returns an audit-changes dict
+    capturing every field that actually changed."""
+    changes: dict = {}
+    # (data_attr, order_attr, audit_key — None to skip audit logging for this field)
+    fields: list[tuple[str, str, str | None]] = [
+        ("customer_id", "customer_id", "customer_id"),
+        ("address_id", "address_id", None),
+        ("fx_rate_krw_to_vnd", "fx_rate_krw_to_vnd", "fx_rate"),
+        ("korean_shipping_krw", "korean_shipping_krw", None),
+        ("international_shipping_vnd", "international_shipping_vnd", None),
+        ("expected_arrival_date", "expected_arrival_date", None),
+        ("notes", "notes", None),
+    ]
+    for data_attr, order_attr, audit_key in fields:
+        new = getattr(data, data_attr)
+        if new is None:
+            continue
+        old = getattr(order, order_attr)
+        if new == old:
+            continue
+        if audit_key:
+            changes[audit_key] = {"from": str(old), "to": str(new)}
+        setattr(order, order_attr, new)
+    return changes
+
+
+async def update_order(
+    db: AsyncSession,
+    *,
+    shop_id: UUID,
+    actor_id: UUID,
+    order_id: UUID,
+    data: "OrderUpdate",
+) -> Order:
+    """Partial update of an order. Items (when present) REPLACE the existing list.
+
+    Status + tracking_number live on a separate endpoint — operator workflow
+    is "fix typos" here vs "advance lifecycle" there.
+    """
+    order = await get_order(db, shop_id=shop_id, order_id=order_id)
+
+    if data.customer_id is not None and data.customer_id != order.customer_id:
+        await _validate_customer_in_shop(db, shop_id=shop_id, customer_id=data.customer_id)
+
+    changes = _apply_order_scalar_updates(order, data)
+
+    if data.items is not None:
+        await _replace_order_items(db, shop_id=shop_id, order=order, items=data.items)
+        changes["item_count"] = len(data.items)
+
+    order.updated_at = datetime.now(timezone.utc)
+    await db.flush()
+
+    if changes:
+        await log_audit(
+            db,
+            shop_id=shop_id,
+            entity_type="order",
+            entity_id=order.id,
+            action="updated",
+            actor_id=actor_id,
+            changes=changes,
+        )
+
+    return await get_order(db, shop_id=shop_id, order_id=order.id)
+
+
+async def _replace_order_items(
+    db: AsyncSession,
+    *,
+    shop_id: UUID,
+    order: Order,
+    items: list,
+) -> None:
+    """Delete every existing item and re-insert from `items`.
+
+    Each new item runs through find_or_create_for_snapshot so the product
+    catalog + stats stay in sync (same path as order creation).
+    """
+    from app.services.product import find_or_create_for_snapshot
+
+    for old_item in order.items:
+        await db.delete(old_item)
+    await db.flush()
+
+    for item_data in items:
+        resolved_product_id = item_data.product_id
+        if resolved_product_id is None:
+            resolved_product_id = await find_or_create_for_snapshot(
+                db,
+                shop_id=shop_id,
+                name=item_data.product_name_snapshot,
+                brand_name=item_data.brand_name_snapshot,
+                url=item_data.product_url_snapshot,
+                base_price_krw=item_data.unit_cost_krw,
+            )
+        db.add(
+            OrderItem(
+                order_id=order.id,
+                product_id=resolved_product_id,
+                variant_id=item_data.variant_id,
+                product_name_snapshot=item_data.product_name_snapshot,
+                product_url_snapshot=item_data.product_url_snapshot,
+                brand_name_snapshot=item_data.brand_name_snapshot,
+                quantity=item_data.quantity,
+                unit_cost_krw=item_data.unit_cost_krw,
+                unit_sale_price_vnd=item_data.unit_sale_price_vnd,
+                notes=item_data.notes,
+            )
+        )
+
+
 async def get_order(
     db: AsyncSession,
     *,

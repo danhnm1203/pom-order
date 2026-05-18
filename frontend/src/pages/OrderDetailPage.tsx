@@ -2,18 +2,23 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useParams } from 'react-router-dom'
 
+import { CustomerCombobox } from '@/components/CustomerCombobox'
 import { IntegerCurrencyInput } from '@/components/IntegerCurrencyInput'
 import { Modal } from '@/components/Modal'
+import { ProductCombobox } from '@/components/ProductCombobox'
+import { ProductQuickAdd } from '@/components/ProductQuickAdd'
 import { StatusBadge } from '@/components/StatusBadge'
 import { useNotify } from '@/components/Toast'
 import { apiClient, ApiException, generateIdempotencyKey } from '@/lib/api-client'
 import { formatVnd } from '@/lib/utils'
 import {
+  type Customer,
   type Order,
   type OrderStatus,
   type Payment,
   type PaymentType,
   type ProblemReason,
+  type Product,
 } from '@/types/api'
 
 /** All statuses in lifecycle order. Operator can pick any (except current) —
@@ -71,6 +76,7 @@ export function OrderDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [problemModalOpen, setProblemModalOpen] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
 
   async function load() {
     if (!id) return
@@ -215,6 +221,15 @@ export function OrderDetailPage() {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          {!isEditing && (
+            <button
+              type="button"
+              onClick={() => setIsEditing(true)}
+              className="text-sm text-accent hover:underline"
+            >
+              ✏️ {t('common.edit')}
+            </button>
+          )}
           <button
             type="button"
             onClick={async () => {
@@ -232,8 +247,20 @@ export function OrderDetailPage() {
         </div>
       </div>
 
+      {isEditing && (
+        <OrderEditForm
+          order={order}
+          onSaved={(updated) => {
+            setOrder(updated)
+            setIsEditing(false)
+            notify.success(t('order.update_success'))
+          }}
+          onCancel={() => setIsEditing(false)}
+        />
+      )}
+
       {/* Customer */}
-      {order.customer && (
+      {!isEditing && order.customer && (
         <section className="bg-surface border border-border rounded-lg p-4">
           <h2 className="text-xs font-semibold uppercase tracking-wide text-fg-muted mb-2">
             {t('order.customer_section')}
@@ -342,6 +369,7 @@ export function OrderDetailPage() {
       </section>
 
       {/* Items */}
+      {!isEditing && (
       <section>
         <h2 className="text-sm font-semibold uppercase tracking-wide text-fg-muted mb-2">
           {t('order.items')} ({order.items.length})
@@ -389,9 +417,10 @@ export function OrderDetailPage() {
           </table>
         </div>
       </section>
+      )}
 
       {/* Totals */}
-      {order.totals && (
+      {!isEditing && order.totals && (
         <section className="bg-surface border border-border rounded-lg p-4 space-y-1.5 text-sm">
           <Row
             label={t('order.totals.subtotal')}
@@ -532,6 +561,343 @@ function ProblemReasonModal({
         )}
       </fieldset>
     </Modal>
+  )
+}
+
+// ============================================================
+// Inline edit form — swaps in over the Customer + Items + Totals sections.
+// Status + tracking# stay on their own button row (separate endpoint).
+// ============================================================
+
+interface EditDraftItem {
+  product_id: string
+  product_name_snapshot: string
+  product_url_snapshot: string
+  brand_name_snapshot: string
+  quantity: string
+  unit_cost_krw: string
+  unit_sale_price_vnd: string
+  notes: string
+}
+
+function emptyDraftItem(): EditDraftItem {
+  return {
+    product_id: '',
+    product_name_snapshot: '',
+    product_url_snapshot: '',
+    brand_name_snapshot: '',
+    quantity: '1',
+    unit_cost_krw: '',
+    unit_sale_price_vnd: '',
+    notes: '',
+  }
+}
+
+function orderItemToDraft(item: Order['items'][number]): EditDraftItem {
+  return {
+    product_id: item.product_id ?? '',
+    product_name_snapshot: item.product_name_snapshot,
+    product_url_snapshot: item.product_url_snapshot ?? '',
+    brand_name_snapshot: item.brand_name_snapshot ?? '',
+    quantity: String(item.quantity),
+    unit_cost_krw: String(item.unit_cost_krw),
+    unit_sale_price_vnd: String(item.unit_sale_price_vnd),
+    notes: item.notes ?? '',
+  }
+}
+
+function OrderEditForm({
+  order,
+  onSaved,
+  onCancel,
+}: {
+  order: Order
+  onSaved: (updated: Order) => void
+  onCancel: () => void
+}) {
+  const { t } = useTranslation()
+  const [customers, setCustomers] = useState<Customer[]>([])
+  const [products, setProducts] = useState<Product[]>([])
+  const [customerId, setCustomerId] = useState<string>(order.customer_id ?? '')
+  const [fxRate, setFxRate] = useState<string>(String(order.fx_rate_krw_to_vnd))
+  const [koreanShipping, setKoreanShipping] = useState<string>(
+    String(order.korean_shipping_krw),
+  )
+  const [intlShipping, setIntlShipping] = useState<string>(
+    String(order.international_shipping_vnd),
+  )
+  const [notes, setNotes] = useState<string>(order.notes ?? '')
+  const [items, setItems] = useState<EditDraftItem[]>(
+    order.items.length > 0 ? order.items.map(orderItemToDraft) : [emptyDraftItem()],
+  )
+  const [quickAddRow, setQuickAddRow] = useState<{ idx: number; seed: string } | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    void apiClient.get<Customer[]>('/api/v1/customers?limit=200').then(setCustomers)
+    void apiClient.get<Product[]>('/api/v1/products?limit=500').then(setProducts)
+  }, [])
+
+  function updateItem(idx: number, patch: Partial<EditDraftItem>) {
+    setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)))
+  }
+
+  function pickProduct(idx: number, product: Product | null) {
+    setItems((prev) =>
+      prev.map((it, i) => {
+        if (i !== idx) return it
+        if (!product) return { ...it, product_id: '' }
+        return {
+          ...it,
+          product_id: product.id,
+          product_name_snapshot: it.product_name_snapshot || product.name,
+          brand_name_snapshot: it.brand_name_snapshot || product.brand_name || '',
+          product_url_snapshot: it.product_url_snapshot || product.url || '',
+          unit_cost_krw: it.unit_cost_krw || (product.base_price_krw ?? ''),
+        }
+      }),
+    )
+  }
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault()
+    setSubmitting(true)
+    setError(null)
+    try {
+      const validItems = items.filter(
+        (i) => i.product_name_snapshot && i.unit_cost_krw && i.unit_sale_price_vnd,
+      )
+      if (validItems.length === 0) {
+        throw new Error(t('order.must_have_item'))
+      }
+      const updated = await apiClient.patch<Order>(`/api/v1/orders/${order.id}`, {
+        customer_id: customerId || null,
+        fx_rate_krw_to_vnd: fxRate,
+        korean_shipping_krw: koreanShipping,
+        international_shipping_vnd: intlShipping,
+        notes: notes || null,
+        items: validItems.map((i) => ({
+          product_id: i.product_id || null,
+          product_name_snapshot: i.product_name_snapshot,
+          product_url_snapshot: i.product_url_snapshot || null,
+          brand_name_snapshot: i.brand_name_snapshot || null,
+          quantity: i.quantity,
+          unit_cost_krw: i.unit_cost_krw,
+          unit_sale_price_vnd: i.unit_sale_price_vnd,
+          notes: i.notes || null,
+        })),
+      })
+      onSaved(updated)
+    } catch (err) {
+      setError(
+        err instanceof ApiException
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : t('order.update_error'),
+      )
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <form onSubmit={submit} className="space-y-4 bg-surface-2 border border-border rounded-lg p-4">
+      <p className="text-xs font-semibold uppercase tracking-wide text-fg-muted">
+        {t('order.edit_mode_title')}
+      </p>
+
+      {error && (
+        <div className="bg-danger-bg border border-danger/20 text-danger rounded-md p-3 text-sm">
+          {error}
+        </div>
+      )}
+
+      {/* Customer + FX */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs font-medium text-fg-muted mb-1">
+            {t('order.customer')}
+          </label>
+          <CustomerCombobox
+            customers={customers}
+            value={customerId}
+            onChange={setCustomerId}
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-fg-muted mb-1">
+            {t('order.fx_rate')}
+          </label>
+          <input
+            type="number"
+            step="0.0001"
+            required
+            value={fxRate}
+            onChange={(e) => setFxRate(e.target.value)}
+            className="w-full px-3 py-2 border border-border rounded-md text-sm tabular bg-surface"
+          />
+        </div>
+      </div>
+
+      {/* Items */}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-fg-muted">
+            {t('order.items')}
+          </h3>
+          <button
+            type="button"
+            onClick={() => setItems((prev) => [...prev, emptyDraftItem()])}
+            className="text-xs text-accent hover:underline"
+          >
+            {t('order.add_item')}
+          </button>
+        </div>
+        <div className="space-y-3">
+          {items.map((item, idx) => (
+            <fieldset
+              key={idx}
+              className="bg-surface border border-border rounded-md p-3 grid grid-cols-1 md:grid-cols-6 gap-2"
+            >
+              <div className="md:col-span-6">
+                <ProductCombobox
+                  products={products}
+                  value={item.product_id}
+                  onChange={(_id, product) => pickProduct(idx, product)}
+                  onCreateNew={(seed) => setQuickAddRow({ idx, seed })}
+                />
+                {quickAddRow?.idx === idx && (
+                  <ProductQuickAdd
+                    seedName={quickAddRow.seed}
+                    onCreated={(p) => {
+                      setProducts((prev) => [p, ...prev])
+                      pickProduct(idx, p)
+                      setQuickAddRow(null)
+                    }}
+                    onCancel={() => setQuickAddRow(null)}
+                  />
+                )}
+              </div>
+              <input
+                type="text"
+                placeholder={t('order.items_table.brand')}
+                value={item.brand_name_snapshot}
+                onChange={(e) => updateItem(idx, { brand_name_snapshot: e.target.value })}
+                className="md:col-span-1 px-2 py-1.5 border border-border rounded-md text-sm bg-surface"
+              />
+              <input
+                type="text"
+                required
+                placeholder={t('order.items_table.product')}
+                value={item.product_name_snapshot}
+                onChange={(e) => updateItem(idx, { product_name_snapshot: e.target.value })}
+                className="md:col-span-2 px-2 py-1.5 border border-border rounded-md text-sm bg-surface"
+              />
+              <input
+                type="number"
+                step="0.01"
+                required
+                placeholder={t('order.items_table.qty')}
+                value={item.quantity}
+                onChange={(e) => updateItem(idx, { quantity: e.target.value })}
+                className="md:col-span-1 px-2 py-1.5 border border-border rounded-md text-sm tabular bg-surface"
+              />
+              <IntegerCurrencyInput
+                required
+                placeholder={t('order.items_table.krw_cost')}
+                value={item.unit_cost_krw}
+                onChange={(v) => updateItem(idx, { unit_cost_krw: v })}
+                className="md:col-span-1 px-2 py-1.5 border border-border rounded-md text-sm tabular bg-surface"
+              />
+              <IntegerCurrencyInput
+                required
+                placeholder={t('order.items_table.vnd_sale_per_unit')}
+                value={item.unit_sale_price_vnd}
+                onChange={(v) => updateItem(idx, { unit_sale_price_vnd: v })}
+                className="md:col-span-1 px-2 py-1.5 border border-border rounded-md text-sm tabular bg-surface"
+              />
+              <input
+                type="url"
+                placeholder={t('order.items_table.korean_url')}
+                value={item.product_url_snapshot}
+                onChange={(e) => updateItem(idx, { product_url_snapshot: e.target.value })}
+                className="md:col-span-4 px-2 py-1.5 border border-border rounded-md text-sm bg-surface"
+              />
+              <input
+                type="text"
+                placeholder={t('order.items_table.variant_notes')}
+                value={item.notes}
+                onChange={(e) => updateItem(idx, { notes: e.target.value })}
+                className="md:col-span-2 px-2 py-1.5 border border-border rounded-md text-sm bg-surface"
+              />
+              {items.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setItems((prev) => prev.filter((_, i) => i !== idx))}
+                  className="md:col-span-6 text-xs text-fg-subtle hover:text-danger justify-self-end"
+                >
+                  {t('order.remove_item')}
+                </button>
+              )}
+            </fieldset>
+          ))}
+        </div>
+      </div>
+
+      {/* Shipping + notes */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs font-medium text-fg-muted mb-1">
+            {t('order.korean_shipping')}
+          </label>
+          <IntegerCurrencyInput
+            value={koreanShipping}
+            onChange={setKoreanShipping}
+            className="w-full px-3 py-2 border border-border rounded-md text-sm tabular bg-surface"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-fg-muted mb-1">
+            {t('order.intl_shipping')}
+          </label>
+          <IntegerCurrencyInput
+            value={intlShipping}
+            onChange={setIntlShipping}
+            className="w-full px-3 py-2 border border-border rounded-md text-sm tabular bg-surface"
+          />
+        </div>
+        <div className="md:col-span-2">
+          <label className="block text-xs font-medium text-fg-muted mb-1">
+            {t('order.notes')}
+          </label>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            rows={2}
+            className="w-full px-3 py-2 border border-border rounded-md text-sm bg-surface"
+          />
+        </div>
+      </div>
+
+      <div className="flex gap-3 pt-1">
+        <button
+          type="submit"
+          disabled={submitting}
+          className="px-5 py-2 bg-accent text-accent-fg rounded-md font-semibold text-sm hover:bg-accent-hover disabled:opacity-50"
+        >
+          {submitting ? t('common.loading') : t('common.save')}
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="px-5 py-2 bg-surface text-fg rounded-md font-semibold text-sm border border-border hover:bg-surface-2"
+        >
+          {t('common.cancel')}
+        </button>
+      </div>
+    </form>
   )
 }
 

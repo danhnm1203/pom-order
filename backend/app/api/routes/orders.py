@@ -16,6 +16,7 @@ from app.schemas.order import (
     OrderResponse,
     OrderShortLinkResponse,
     OrderStatusUpdate,
+    OrderUpdate,
 )
 from app.services import order as order_service
 from app.services import payment as payment_service
@@ -81,6 +82,27 @@ async def get_order(
     shop_id: UUID = Depends(get_current_shop_id),
 ) -> OrderResponse:
     order = await order_service.get_order(db, shop_id=shop_id, order_id=order_id)
+    payments = await payment_service.list_payments_for_order(
+        db, shop_id=shop_id, order_id=order_id
+    )
+    return _to_response(order, payments=payments)
+
+
+@router.patch("/{order_id}", response_model=OrderResponse)
+async def update_order(
+    order_id: UUID,
+    data: OrderUpdate,
+    db: AsyncSession = Depends(get_db),
+    shop_id: UUID = Depends(get_current_shop_id),
+    user_id: UUID = Depends(get_current_user_id),
+) -> OrderResponse:
+    order = await order_service.update_order(
+        db,
+        shop_id=shop_id,
+        actor_id=user_id,
+        order_id=order_id,
+        data=data,
+    )
     payments = await payment_service.list_payments_for_order(
         db, shop_id=shop_id, order_id=order_id
     )

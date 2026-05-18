@@ -51,6 +51,30 @@ class OrderCreate(BaseModel):
     items: Annotated[list[OrderItemCreate], Field(min_length=1)]
 
 
+class OrderUpdate(BaseModel):
+    """Partial update of a non-status order fields.
+
+    Status + tracking_number live on a separate endpoint (state machine).
+    When `items` is provided, the entire item list is REPLACED (delete then
+    re-insert) — simpler than per-item CRUD and matches the operator's mental
+    model ("fix the order, save").
+    """
+
+    customer_id: UUID | None = None
+    address_id: UUID | None = None
+    fx_rate_krw_to_vnd: Annotated[Decimal | None, Field(gt=0)] = None
+    korean_shipping_krw: Annotated[
+        Decimal | None, Field(ge=0, max_digits=18, decimal_places=2)
+    ] = None
+    international_shipping_vnd: Annotated[
+        Decimal | None, Field(ge=0, max_digits=18, decimal_places=0)
+    ] = None
+    expected_arrival_date: date | None = None
+    notes: str | None = None
+    # When provided, replaces the entire item list. None = leave items unchanged.
+    items: list[OrderItemCreate] | None = None
+
+
 class OrderStatusUpdate(BaseModel):
     status: OrderStatus
     # Required if status == 'problem'. Free text but app suggests a controlled
