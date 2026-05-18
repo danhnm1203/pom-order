@@ -26,6 +26,7 @@ export function Layout() {
     { to: '/orders/new', label: t('nav.new_order'), icon: '+' },
     { to: '/customers', label: t('nav.customers'), icon: '◯' },
     { to: '/products', label: t('nav.products'), icon: '◫', desktopOnly: true },
+    { to: '/to-order', label: t('nav.to_order'), icon: '☐', desktopOnly: true },
     { to: '/fx', label: t('nav.fx_rate'), icon: '₩' },
     { to: '/settings', label: t('nav.settings'), icon: '⚙', desktopOnly: true },
   ]

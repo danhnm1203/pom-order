@@ -167,6 +167,21 @@ export interface ProductWithStats extends Product {
   stats: ProductStats
 }
 
+export interface OrderItemListRow {
+  item_id: string
+  order_id: string
+  order_status: OrderStatus
+  order_created_at: string
+  product_id: string | null
+  product_name: string
+  product_url: string | null
+  brand_name: string | null
+  quantity: string
+  notes: string | null
+  customer_id: string | null
+  customer_name: string | null
+}
+
 export interface FxRate {
   id: string
   shop_id: string

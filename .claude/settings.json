@@ -102,7 +102,9 @@
       "Bash(.venv/bin/python -m pytest tests/unit/test_order_status.py -q)",
       "Bash(echo \"tsc exit=$?\")",
       "Bash(python -m py_compile app/models/customer.py app/schemas/customer.py app/services/customer.py)",
-      "Bash(python -m py_compile app/api/routes/public.py)"
+      "Bash(python -m py_compile app/api/routes/public.py)",
+      "Bash(python -m py_compile app/models/catalog.py app/schemas/catalog.py app/services/product.py)",
+      "Bash(python -m py_compile app/models/catalog.py app/schemas/catalog.py app/services/product.py app/api/routes/order_items.py app/main.py)"
     ],
     "additionalDirectories": [
       "/Users/danhnguyen/Desktop/freelancers/pom_order/.claude/skills",

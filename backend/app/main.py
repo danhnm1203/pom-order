@@ -13,6 +13,7 @@ from app.api.routes import (
     dashboard,
     fx_rates,
     health,
+    order_items,
     orders,
     payments,
     products,
@@ -63,6 +64,7 @@ def create_app() -> FastAPI:
     app.include_router(customers.router, prefix="/api/v1/customers", tags=["customers"])
     app.include_router(products.router, prefix="/api/v1/products", tags=["products"])
     app.include_router(orders.router, prefix="/api/v1/orders", tags=["orders"])
+    app.include_router(order_items.router, prefix="/api/v1/order-items", tags=["order-items"])
     app.include_router(payments.router, prefix="/api/v1/orders", tags=["payments"])
     app.include_router(fx_rates.router, prefix="/api/v1/fx-rates", tags=["fx-rates"])
     app.include_router(dashboard.router, prefix="/api/v1/dashboard", tags=["dashboard"])

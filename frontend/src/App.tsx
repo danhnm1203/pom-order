@@ -13,6 +13,7 @@ import { OrderListPage } from '@/pages/OrderListPage'
 import { ProductListPage } from '@/pages/ProductListPage'
 import { PublicOrderPage } from '@/pages/PublicOrderPage'
 import { SettingsPage } from '@/pages/SettingsPage'
+import { ToOrderPage } from '@/pages/ToOrderPage'
 
 export default function App() {
   return (
@@ -37,6 +38,7 @@ export default function App() {
         <Route path="orders/:id" element={<OrderDetailPage />} />
         <Route path="customers" element={<CustomerListPage />} />
         <Route path="products" element={<ProductListPage />} />
+        <Route path="to-order" element={<ToOrderPage />} />
         <Route path="fx" element={<FxRatePage />} />
         <Route path="settings" element={<SettingsPage />} />
       </Route>

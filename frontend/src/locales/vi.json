@@ -31,6 +31,7 @@
     "new_order": "Tạo đơn",
     "customers": "Khách hàng",
     "products": "Sản phẩm",
+    "to_order": "Cần đặt với Hàn",
     "fx_rate": "Tỷ giá",
     "settings": "Cài đặt",
     "logout": "Đăng xuất",
@@ -307,6 +308,22 @@
       "pending": "Còn lại",
       "delivered": "Đã giao"
     }
+  },
+  "to_order": {
+    "title": "Cần đặt với Hàn",
+    "summary": "{{count}} dòng · tổng {{qty}} cái",
+    "filter_all": "Tất cả",
+    "filter_to_order": "Cần đặt",
+    "filter_placed": "Đã đặt",
+    "empty": "Không có sản phẩm nào ở mục này.",
+    "load_error": "Không tải được danh sách",
+    "col_status": "Trạng thái đơn",
+    "col_brand": "Brand",
+    "col_product": "Sản phẩm",
+    "col_qty": "SL",
+    "col_notes": "Ghi chú (màu, size)",
+    "col_customer": "Khách / Đơn",
+    "col_date": "Ngày đặt"
   },
   "fx": {
     "title": "Tỷ giá KRW → VND",
