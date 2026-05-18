@@ -311,19 +311,16 @@
   },
   "to_order": {
     "title": "한국 주문 필요",
-    "summary": "{{count}}행 · 총 {{qty}}개",
+    "summary": "{{products}} 상품 · 총 {{qty}}개",
     "filter_all": "전체",
     "filter_to_order": "주문 필요",
     "filter_placed": "주문 완료",
     "empty": "이 카테고리에 상품이 없습니다.",
     "load_error": "목록을 불러올 수 없습니다",
-    "col_status": "주문 상태",
     "col_brand": "브랜드",
     "col_product": "상품",
-    "col_qty": "수량",
-    "col_notes": "메모 (색상, 사이즈)",
-    "col_customer": "고객 / 주문",
-    "col_date": "주문일"
+    "col_total_qty": "총 수량",
+    "col_breakdown": "주문별 상세 (메모 / 고객)"
   },
   "fx": {
     "title": "환율 KRW → VND",

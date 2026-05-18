@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 
@@ -19,10 +19,50 @@ const PLACED_STATUSES: OrderStatus[] = [
 type Filter = 'all' | 'to_order' | 'placed'
 
 const FILTERS: Array<{ key: Filter; statuses: OrderStatus[] | null }> = [
-  { key: 'all', statuses: null },
   { key: 'to_order', statuses: PENDING_STATUSES },
   { key: 'placed', statuses: PLACED_STATUSES },
+  { key: 'all', statuses: null },
 ]
+
+/** A bucket of order_items aggregated by product. */
+interface ProductGroup {
+  /** Stable key: product_id when present, otherwise a normalised name fallback. */
+  key: string
+  brand_name: string | null
+  product_name: string
+  product_url: string | null
+  product_id: string | null
+  total_qty: number
+  items: OrderItemListRow[]
+}
+
+/** Group items by product_id; fall back to brand+name when product_id is null
+ *  (legacy items that pre-date the auto-link feature). */
+function groupByProduct(items: OrderItemListRow[]): ProductGroup[] {
+  const map = new Map<string, ProductGroup>()
+  for (const it of items) {
+    const key =
+      it.product_id ??
+      `legacy::${(it.brand_name ?? '').toLowerCase()}::${it.product_name.toLowerCase()}`
+    const existing = map.get(key)
+    if (existing) {
+      existing.total_qty += Number(it.quantity || 0)
+      existing.items.push(it)
+    } else {
+      map.set(key, {
+        key,
+        brand_name: it.brand_name,
+        product_name: it.product_name,
+        product_url: it.product_url,
+        product_id: it.product_id,
+        total_qty: Number(it.quantity || 0),
+        items: [it],
+      })
+    }
+  }
+  // Sort by total_qty desc — the busiest products are usually the most useful to see first.
+  return Array.from(map.values()).sort((a, b) => b.total_qty - a.total_qty)
+}
 
 export function ToOrderPage() {
   const { t, i18n } = useTranslation()
@@ -57,21 +97,25 @@ export function ToOrderPage() {
 
   const dateLocale = i18n.resolvedLanguage === 'ko' ? 'ko-KR' : 'vi-VN'
 
-  const visibleItems = items.filter((it) => {
-    const f = FILTERS.find((x) => x.key === filter)
-    if (!f || f.statuses === null) return true
-    return f.statuses.includes(it.order_status)
-  })
+  const visibleItems = useMemo(
+    () =>
+      items.filter((it) => {
+        const f = FILTERS.find((x) => x.key === filter)
+        if (!f || f.statuses === null) return true
+        return f.statuses.includes(it.order_status)
+      }),
+    [items, filter],
+  )
 
-  // Total quantity for the current filter — useful summary number at the top.
-  const totalQty = visibleItems.reduce((sum, it) => sum + Number(it.quantity || 0), 0)
+  const groups = useMemo(() => groupByProduct(visibleItems), [visibleItems])
+  const totalQty = groups.reduce((sum, g) => sum + g.total_qty, 0)
 
   return (
     <div className="p-4 md:p-6 max-w-6xl">
       <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
         <h1 className="text-2xl font-semibold tracking-tight">{t('to_order.title')}</h1>
         <p className="text-sm text-fg-muted">
-          {t('to_order.summary', { count: visibleItems.length, qty: totalQty })}
+          {t('to_order.summary', { products: groups.length, qty: totalQty })}
         </p>
       </div>
 
@@ -99,75 +143,84 @@ export function ToOrderPage() {
         <div className="bg-danger-bg border border-danger/20 text-danger rounded-md p-4 text-sm">
           {error}
         </div>
-      ) : visibleItems.length === 0 ? (
+      ) : groups.length === 0 ? (
         <div className="bg-surface border border-border rounded-lg p-8 text-center text-fg-muted text-sm">
           {t('to_order.empty')}
         </div>
       ) : (
         <div className="bg-surface border border-border rounded-lg overflow-x-auto">
-          <table className="w-full text-sm min-w-[900px]">
+          <table className="w-full text-sm min-w-[820px]">
             <thead className="bg-surface-2 text-xs font-semibold uppercase text-fg-muted">
               <tr>
-                <th className="text-left py-2 px-3">{t('to_order.col_status')}</th>
                 <th className="text-left py-2 px-3">{t('to_order.col_brand')}</th>
                 <th className="text-left py-2 px-3">{t('to_order.col_product')}</th>
-                <th className="text-right py-2 px-3">{t('to_order.col_qty')}</th>
-                <th className="text-left py-2 px-3">{t('to_order.col_notes')}</th>
-                <th className="text-left py-2 px-3">{t('to_order.col_customer')}</th>
-                <th className="text-right py-2 px-3">{t('to_order.col_date')}</th>
+                <th className="text-right py-2 px-3">{t('to_order.col_total_qty')}</th>
+                <th className="text-left py-2 px-3">{t('to_order.col_breakdown')}</th>
               </tr>
             </thead>
             <tbody>
-              {visibleItems.map((it) => (
-                <tr key={it.item_id} className="border-t border-border hover:bg-surface-2">
-                  <td className="py-2 px-3">
-                    <span className={`badge badge--${it.order_status.replace('_', '-')}`}>
-                      {t(`status.${it.order_status}`)}
-                    </span>
-                  </td>
-                  <td className="py-2 px-3 text-fg-muted">{it.brand_name ?? '—'}</td>
+              {groups.map((g) => (
+                <tr key={g.key} className="border-t border-border align-top">
+                  <td className="py-2 px-3 text-fg-muted">{g.brand_name ?? '—'}</td>
                   <td className="py-2 px-3 font-medium">
-                    {it.product_url ? (
+                    {g.product_url ? (
                       <a
-                        href={it.product_url}
+                        href={g.product_url}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-accent hover:underline"
-                        title={it.product_url}
+                        title={g.product_url}
                       >
-                        {it.product_name}
+                        {g.product_name}
                       </a>
                     ) : (
-                      it.product_name
+                      g.product_name
                     )}
                   </td>
-                  <td className="py-2 px-3 text-right tabular font-semibold">
-                    {formatQty(it.quantity)}
+                  <td className="py-2 px-3 text-right tabular text-base font-bold">
+                    {formatQty(g.total_qty)}
                   </td>
-                  <td className="py-2 px-3 text-xs text-fg-muted truncate max-w-[220px]" title={it.notes ?? undefined}>
-                    {it.notes ?? '—'}
-                  </td>
-                  <td className="py-2 px-3 text-xs">
-                    {it.customer_id ? (
-                      <Link
-                        to={`/orders?customer_id=${it.customer_id}`}
-                        className="text-accent hover:underline"
-                      >
-                        {it.customer_name ?? '—'}
-                      </Link>
-                    ) : (
-                      <span className="text-fg-subtle">—</span>
-                    )}{' '}
-                    ·{' '}
-                    <Link
-                      to={`/orders/${it.order_id}`}
-                      className="text-xs text-fg-subtle hover:text-accent hover:underline font-mono"
-                    >
-                      #{it.order_id.slice(0, 8)}
-                    </Link>
-                  </td>
-                  <td className="py-2 px-3 text-right text-xs text-fg-muted tabular">
-                    {new Date(it.order_created_at).toLocaleDateString(dateLocale)}
+                  <td className="py-2 px-3">
+                    <ul className="space-y-1 text-xs">
+                      {g.items.map((it) => (
+                        <li key={it.item_id} className="flex items-baseline gap-1.5 flex-wrap">
+                          <span className="tabular font-semibold text-fg">
+                            {formatQty(it.quantity)}×
+                          </span>
+                          {filter === 'all' && (
+                            <span
+                              className={`badge badge--${it.order_status.replace('_', '-')} text-[10px]`}
+                            >
+                              {t(`status.${it.order_status}`)}
+                            </span>
+                          )}
+                          {it.notes && (
+                            <span className="text-fg-muted">{it.notes}</span>
+                          )}
+                          <span className="text-fg-subtle">·</span>
+                          {it.customer_id ? (
+                            <Link
+                              to={`/orders?customer_id=${it.customer_id}`}
+                              className="text-accent hover:underline"
+                            >
+                              {it.customer_name ?? '—'}
+                            </Link>
+                          ) : (
+                            <span className="text-fg-subtle">—</span>
+                          )}
+                          <Link
+                            to={`/orders/${it.order_id}`}
+                            className="text-fg-subtle hover:text-accent hover:underline font-mono"
+                          >
+                            #{it.order_id.slice(0, 8)}
+                          </Link>
+                          <span className="text-fg-subtle">
+                            ·{' '}
+                            {new Date(it.order_created_at).toLocaleDateString(dateLocale)}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
                   </td>
                 </tr>
               ))}
