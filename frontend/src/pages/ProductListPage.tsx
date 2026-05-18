@@ -112,7 +112,19 @@ export function ProductListPage() {
                   <tr key={p.id} className="border-t border-border hover:bg-surface-2">
                     <td className="py-2 px-4 text-fg-muted">{p.brand_name ?? '—'}</td>
                     <td className="py-2 px-4 font-medium">
-                      <div>{p.name}</div>
+                      {p.url ? (
+                        <a
+                          href={p.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-accent hover:underline"
+                          title={p.url}
+                        >
+                          {p.name}
+                        </a>
+                      ) : (
+                        <div>{p.name}</div>
+                      )}
                       {p.name_kr && (
                         <div className="text-xs text-fg-subtle">{p.name_kr}</div>
                       )}
