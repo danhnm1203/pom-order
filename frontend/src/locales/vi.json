@@ -185,6 +185,10 @@
     "load_error": "Lỗi tải đơn",
     "create_error": "Lỗi tạo đơn",
     "status_change_error": "Lỗi cập nhật trạng thái",
+    "tracking_label": "Mã vận đơn",
+    "tracking_prompt": "Nhập mã vận đơn (carrier tracking number) cho đơn này:",
+    "tracking_required": "Cần nhập mã vận đơn để chuyển sang trạng thái 'Vận chuyển cho khách'",
+    "tracking_copied": "Đã copy mã vận đơn",
     "must_have_item": "Cần ít nhất 1 item",
     "customer_column": "Khách hàng",
     "phone_column": "Số điện thoại",
@@ -206,14 +210,16 @@
     "email": "Email"
   },
   "status": {
-    "pending": "Đang quote",
-    "ordered": "Đã đặt với Hàn",
-    "in_transit": "Đang vận chuyển",
-    "arrived": "Đã về VN",
-    "delivered": "Đã giao khách",
-    "completed": "Tất toán xong",
+    "chatting": "Trò chuyện với khách",
+    "order_placed": "Khách đặt",
+    "purchased": "Đã mua",
+    "at_kr_warehouse": "Đến kho Hàn",
+    "at_vn_warehouse": "Đến kho Việt",
+    "received_by_owner": "Về tay Xuân",
+    "shipping_to_customer": "Vận chuyển cho khách",
+    "customer_received": "Khách nhận",
     "problem": "Có vấn đề",
-    "cancelled": "Đã hủy"
+    "cancelled": "Đã huỷ"
   },
   "problem_reason": {
     "label": "Lý do",
@@ -347,6 +353,7 @@
     "progress": "Tiến trình",
     "products_count": "Sản phẩm ({{count}})",
     "qty_label": "Số lượng:",
+    "tracking_label": "Mã vận đơn (tra cứu bên carrier)",
     "subtotal": "Tổng tiền sản phẩm",
     "intl_shipping": "Phí ship quốc tế",
     "paid": "Đã thanh toán (cọc)",

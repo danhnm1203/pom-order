@@ -76,14 +76,14 @@ async def get_dashboard(
         .join(Order, Order.id == OrderItem.order_id)
         .where(Order.shop_id == shop_id)
         .where(Order.deleted_at.is_(None))
-        .where(Order.status.not_in([OrderStatus.CANCELLED, OrderStatus.COMPLETED]))
+        .where(Order.status.not_in([OrderStatus.CANCELLED, OrderStatus.CUSTOMER_RECEIVED]))
     )
 
     intl_ship_q = (
         select(func.coalesce(func.sum(Order.international_shipping_vnd), 0))
         .where(Order.shop_id == shop_id)
         .where(Order.deleted_at.is_(None))
-        .where(Order.status.not_in([OrderStatus.CANCELLED, OrderStatus.COMPLETED]))
+        .where(Order.status.not_in([OrderStatus.CANCELLED, OrderStatus.CUSTOMER_RECEIVED]))
     )
 
     paid_q = (
@@ -101,7 +101,7 @@ async def get_dashboard(
         .join(Order, Order.id == Payment.order_id)
         .where(Payment.shop_id == shop_id)
         .where(Order.deleted_at.is_(None))
-        .where(Order.status.not_in([OrderStatus.CANCELLED, OrderStatus.COMPLETED]))
+        .where(Order.status.not_in([OrderStatus.CANCELLED, OrderStatus.CUSTOMER_RECEIVED]))
     )
 
     krw_items_q = (
@@ -141,7 +141,7 @@ async def get_dashboard(
         select(func.count(Order.id))
         .where(Order.shop_id == shop_id)
         .where(Order.deleted_at.is_(None))
-        .where(Order.status.not_in([OrderStatus.CANCELLED, OrderStatus.COMPLETED]))
+        .where(Order.status.not_in([OrderStatus.CANCELLED, OrderStatus.CUSTOMER_RECEIVED]))
     )
 
     fx_q = (

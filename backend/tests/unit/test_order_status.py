@@ -22,24 +22,26 @@ class TestValidTransitions:
     @pytest.mark.parametrize(
         "from_status, to_status",
         [
-            # Forward lifecycle
-            (OrderStatus.PENDING, OrderStatus.ORDERED),
-            (OrderStatus.ORDERED, OrderStatus.IN_TRANSIT),
-            (OrderStatus.IN_TRANSIT, OrderStatus.ARRIVED),
-            (OrderStatus.ARRIVED, OrderStatus.DELIVERED),
-            (OrderStatus.DELIVERED, OrderStatus.COMPLETED),
-            # Skip-ahead (previously blocked, now allowed)
-            (OrderStatus.PENDING, OrderStatus.COMPLETED),
-            (OrderStatus.PENDING, OrderStatus.DELIVERED),
+            # Forward lifecycle (new 10-state model)
+            (OrderStatus.CHATTING, OrderStatus.ORDER_PLACED),
+            (OrderStatus.ORDER_PLACED, OrderStatus.PURCHASED),
+            (OrderStatus.PURCHASED, OrderStatus.AT_KR_WAREHOUSE),
+            (OrderStatus.AT_KR_WAREHOUSE, OrderStatus.AT_VN_WAREHOUSE),
+            (OrderStatus.AT_VN_WAREHOUSE, OrderStatus.RECEIVED_BY_OWNER),
+            (OrderStatus.RECEIVED_BY_OWNER, OrderStatus.SHIPPING_TO_CUSTOMER),
+            (OrderStatus.SHIPPING_TO_CUSTOMER, OrderStatus.CUSTOMER_RECEIVED),
+            # Skip-ahead
+            (OrderStatus.CHATTING, OrderStatus.CUSTOMER_RECEIVED),
+            (OrderStatus.ORDER_PLACED, OrderStatus.AT_VN_WAREHOUSE),
             # Backward (mis-click recovery — the main reason for opening up)
-            (OrderStatus.DELIVERED, OrderStatus.ARRIVED),
-            (OrderStatus.COMPLETED, OrderStatus.PENDING),
+            (OrderStatus.SHIPPING_TO_CUSTOMER, OrderStatus.RECEIVED_BY_OWNER),
+            (OrderStatus.CUSTOMER_RECEIVED, OrderStatus.CHATTING),
             # Cancelled is no longer terminal
-            (OrderStatus.CANCELLED, OrderStatus.ORDERED),
-            (OrderStatus.CANCELLED, OrderStatus.PENDING),
+            (OrderStatus.CANCELLED, OrderStatus.PURCHASED),
+            (OrderStatus.CANCELLED, OrderStatus.CHATTING),
             # Problem ↔ anything
-            (OrderStatus.ORDERED, OrderStatus.PROBLEM),
-            (OrderStatus.PROBLEM, OrderStatus.ORDERED),
+            (OrderStatus.PURCHASED, OrderStatus.PROBLEM),
+            (OrderStatus.PROBLEM, OrderStatus.PURCHASED),
             (OrderStatus.PROBLEM, OrderStatus.CANCELLED),
         ],
     )
@@ -51,8 +53,8 @@ class TestValidTransitions:
     @pytest.mark.parametrize(
         "from_status, to_status",
         [
-            (OrderStatus.PENDING, OrderStatus.ORDERED),
-            (OrderStatus.COMPLETED, OrderStatus.PENDING),
+            (OrderStatus.CHATTING, OrderStatus.ORDER_PLACED),
+            (OrderStatus.CUSTOMER_RECEIVED, OrderStatus.CHATTING),
         ],
     )
     def test_validate_transition_no_raise(
@@ -70,10 +72,10 @@ class TestInvalidTransitions:
 
     def test_validate_noop_raises_422(self) -> None:
         with pytest.raises(ApiError) as exc_info:
-            validate_transition(OrderStatus.PENDING, OrderStatus.PENDING)
+            validate_transition(OrderStatus.CHATTING, OrderStatus.CHATTING)
         assert exc_info.value.status_code == 422
         assert exc_info.value.code == "invalid_status_transition"
-        assert "pending" in exc_info.value.message
+        assert "chatting" in exc_info.value.message
 
 
 class TestAllowedNextStatuses:
@@ -86,8 +88,8 @@ class TestAllowedNextStatuses:
         assert len(result) == len(list(OrderStatus)) - 1
 
     def test_returns_in_lifecycle_order(self) -> None:
-        # Enum-declaration order is the lifecycle: pending → ordered → ... → cancelled.
+        # Enum-declaration order is the lifecycle: chatting → order_placed → ... → cancelled.
         # Removing one preserves the remaining order.
-        result = allowed_next_statuses(OrderStatus.ARRIVED)
-        expected = [s for s in OrderStatus if s != OrderStatus.ARRIVED]
+        result = allowed_next_statuses(OrderStatus.AT_VN_WAREHOUSE)
+        expected = [s for s in OrderStatus if s != OrderStatus.AT_VN_WAREHOUSE]
         assert result == expected

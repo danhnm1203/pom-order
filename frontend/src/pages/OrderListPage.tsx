@@ -10,12 +10,14 @@ import { type Customer, type Order, type OrderStatus } from '@/types/api'
 
 const STATUS_FILTERS: Array<OrderStatus | 'all'> = [
   'all',
-  'pending',
-  'ordered',
-  'in_transit',
-  'arrived',
-  'delivered',
-  'completed',
+  'chatting',
+  'order_placed',
+  'purchased',
+  'at_kr_warehouse',
+  'at_vn_warehouse',
+  'received_by_owner',
+  'shipping_to_customer',
+  'customer_received',
   'problem',
   'cancelled',
 ]

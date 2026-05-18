@@ -68,7 +68,7 @@ async def create_order(
         shop_id=shop_id,
         customer_id=data.customer_id,
         address_id=data.address_id,
-        status=OrderStatus.PENDING,
+        status=OrderStatus.ORDER_PLACED,
         fx_rate_krw_to_vnd=fx_rate,
         korean_shipping_krw=data.korean_shipping_krw,
         international_shipping_vnd=data.international_shipping_vnd,
@@ -221,12 +221,13 @@ async def update_status(
     new_status: OrderStatus,
     actor_id: UUID,
     problem_reason: str | None = None,
+    tracking_number: str | None = None,
 ) -> Order:
     """Transition order status with state machine validation + audit log.
 
-    If new_status == 'problem', `problem_reason` must be provided. When leaving
-    'problem' (transitioning to any other status), the existing reason is kept
-    for audit trail but no longer affects display.
+    If new_status == 'problem', `problem_reason` must be provided.
+    If new_status == 'shipping_to_customer', `tracking_number` is required
+    (operator must enter the carrier tracking number at that step).
     """
     from app.exceptions import ApiError  # local to avoid circular
 
@@ -243,6 +244,23 @@ async def update_status(
             "Cần điền lý do khi chuyển sang trạng thái 'problem'",
         )
 
+    # Tracking number required when entering shipping_to_customer (operator
+    # always knows the carrier code before clicking the button — enforcing it
+    # here prevents accidentally leaving customers without a way to track).
+    if new_status == OrderStatus.SHIPPING_TO_CUSTOMER:
+        chosen_tracking = (tracking_number or order.tracking_number or "").strip()
+        if not chosen_tracking:
+            raise ApiError(
+                422,
+                "tracking_number_required",
+                "Cần điền mã vận đơn khi chuyển sang trạng thái 'vận chuyển cho khách'",
+            )
+        order.tracking_number = chosen_tracking
+    elif tracking_number is not None:
+        # Allow setting/clearing tracking# even when not entering shipping state
+        # (e.g., correction). Empty string clears.
+        order.tracking_number = tracking_number.strip() or None
+
     order.status = new_status
     order.updated_at = datetime.now(timezone.utc)
 
@@ -252,13 +270,15 @@ async def update_status(
     # Note: we keep the old problem_reason if transitioning OUT of problem,
     # for historical audit. To clear, app can PATCH separately.
 
-    # Set ordered_at when transitioning to 'ordered' for the first time
-    if new_status == OrderStatus.ORDERED and order.ordered_at is None:
+    # Stamp ordered_at when first reaching the "purchased with Korea" step.
+    if new_status == OrderStatus.PURCHASED and order.ordered_at is None:
         order.ordered_at = datetime.now(timezone.utc)
 
     changes: dict = {"from": old_status.value, "to": new_status.value}
     if problem_reason:
         changes["problem_reason"] = problem_reason
+    if tracking_number:
+        changes["tracking_number"] = tracking_number
 
     await log_audit(
         db,

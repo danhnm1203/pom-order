@@ -102,6 +102,7 @@ async def update_order_status(
         new_status=data.status,
         actor_id=user_id,
         problem_reason=data.problem_reason,
+        tracking_number=data.tracking_number,
     )
     payments = await payment_service.list_payments_for_order(
         db, shop_id=shop_id, order_id=order_id

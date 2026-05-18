@@ -57,6 +57,10 @@ class OrderStatusUpdate(BaseModel):
     # vocabulary in the UI (out_of_stock / wrong_variant / ship_delay /
     # customer_cancel / damaged / customs_hold / other).
     problem_reason: str | None = None
+    # Required when status == 'shipping_to_customer'. Operator-entered carrier
+    # tracking code (e.g. GHN/J&T). Surfaced on public page so customer can
+    # self-track.
+    tracking_number: str | None = None
 
 
 class OrderShortLinkResponse(BaseModel):
@@ -92,6 +96,7 @@ class OrderResponse(BaseModel):
     expected_arrival_date: date | None
     notes: str | None
     problem_reason: str | None
+    tracking_number: str | None
     ordered_at: datetime | None
     created_at: datetime
     updated_at: datetime

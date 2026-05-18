@@ -1,12 +1,14 @@
 /** API response types matching FastAPI backend Pydantic schemas. */
 
 export type OrderStatus =
-  | 'pending'
-  | 'ordered'
-  | 'in_transit'
-  | 'arrived'
-  | 'delivered'
-  | 'completed'
+  | 'chatting'
+  | 'order_placed'
+  | 'purchased'
+  | 'at_kr_warehouse'
+  | 'at_vn_warehouse'
+  | 'received_by_owner'
+  | 'shipping_to_customer'
+  | 'customer_received'
   | 'problem'
   | 'cancelled'
 
@@ -56,6 +58,7 @@ export interface Order {
   international_shipping_vnd: string
   notes: string | null
   problem_reason: string | null
+  tracking_number: string | null
   ordered_at: string | null
   expected_arrival_date: string | null
   created_at: string
@@ -279,6 +282,7 @@ export interface PublicOrderResponse {
   status: OrderStatus
   created_at: string
   expected_arrival_date: string | null
+  tracking_number: string | null
   items: Array<{
     product_name: string
     brand: string | null
@@ -296,14 +300,16 @@ export interface PublicOrderResponse {
  * Kept for non-React contexts (utilities, tests). Always Vietnamese.
  */
 export const STATUS_LABELS_VI: Record<OrderStatus, string> = {
-  pending: 'Đang quote',
-  ordered: 'Đã đặt với Hàn',
-  in_transit: 'Đang vận chuyển',
-  arrived: 'Đã về VN',
-  delivered: 'Đã giao khách',
-  completed: 'Tất toán xong',
+  chatting: 'Trò chuyện với khách',
+  order_placed: 'Khách đặt',
+  purchased: 'Đã mua',
+  at_kr_warehouse: 'Đến kho Hàn',
+  at_vn_warehouse: 'Đến kho Việt',
+  received_by_owner: 'Về tay Xuân',
+  shipping_to_customer: 'Vận chuyển cho khách',
+  customer_received: 'Khách nhận',
   problem: 'Có vấn đề',
-  cancelled: 'Đã hủy',
+  cancelled: 'Đã huỷ',
 }
 
 /** @deprecated — use t() */

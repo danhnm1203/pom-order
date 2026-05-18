@@ -99,6 +99,9 @@ async def get_public_order(
         "expected_arrival_date": (
             order.expected_arrival_date.isoformat() if order.expected_arrival_date else None
         ),
+        # Tracking number is safe to expose — the customer needs it to self-track
+        # on the carrier site. Null until the order reaches shipping_to_customer.
+        "tracking_number": order.tracking_number,
         "items": [
             {
                 "product_name": item.product_name_snapshot,

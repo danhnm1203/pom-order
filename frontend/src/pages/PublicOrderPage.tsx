@@ -8,12 +8,14 @@ import { formatVnd } from '@/lib/utils'
 import { type PublicOrderResponse, type OrderStatus } from '@/types/api'
 
 const STATUS_PROGRESS: OrderStatus[] = [
-  'pending',
-  'ordered',
-  'in_transit',
-  'arrived',
-  'delivered',
-  'completed',
+  'chatting',
+  'order_placed',
+  'purchased',
+  'at_kr_warehouse',
+  'at_vn_warehouse',
+  'received_by_owner',
+  'shipping_to_customer',
+  'customer_received',
 ]
 
 export function PublicOrderPage() {
@@ -97,6 +99,16 @@ export function PublicOrderPage() {
                 date: new Date(data.expected_arrival_date).toLocaleDateString(dateLocale),
               })}
             </p>
+          )}
+          {data.tracking_number && (
+            <div className="mt-3 px-3 py-2 rounded-md bg-surface-2 border border-border">
+              <p className="text-xs font-semibold uppercase tracking-wide text-fg-muted">
+                {t('public.tracking_label')}
+              </p>
+              <p className="text-sm tabular font-mono mt-1 break-all">
+                {data.tracking_number}
+              </p>
+            </div>
           )}
         </div>
 

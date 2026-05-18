@@ -7,12 +7,14 @@ import { type Order, type OrderStatus, type ProblemReason } from '@/types/api'
 
 /** All statuses in lifecycle order — see OrderDetailPage for rationale. */
 const ALL_STATUSES: OrderStatus[] = [
-  'pending',
-  'ordered',
-  'in_transit',
-  'arrived',
-  'delivered',
-  'completed',
+  'chatting',
+  'order_placed',
+  'purchased',
+  'at_kr_warehouse',
+  'at_vn_warehouse',
+  'received_by_owner',
+  'shipping_to_customer',
+  'customer_received',
   'problem',
   'cancelled',
 ]
@@ -56,7 +58,11 @@ export function QuickStatusMenu({ order, onUpdate }: QuickStatusMenuProps) {
   }, [open])
 
   async function transition(newStatus: OrderStatus) {
-    let body: { status: OrderStatus; problem_reason?: string } = { status: newStatus }
+    const body: {
+      status: OrderStatus
+      problem_reason?: string
+      tracking_number?: string
+    } = { status: newStatus }
 
     if (newStatus === 'problem') {
       const reasonOptions = PROBLEM_REASON_KEYS.map(
@@ -75,6 +81,22 @@ export function QuickStatusMenu({ order, onUpdate }: QuickStatusMenuProps) {
           ? PROBLEM_REASON_KEYS[num - 1]
           : choice.trim()
       body.problem_reason = selected
+    }
+
+    if (newStatus === 'shipping_to_customer') {
+      const existing = order.tracking_number ?? ''
+      const input = window.prompt(t('order.tracking_prompt'), existing)
+      if (input === null) {
+        setOpen(false)
+        return
+      }
+      const trimmed = input.trim()
+      if (!trimmed) {
+        alert(t('order.tracking_required'))
+        setOpen(false)
+        return
+      }
+      body.tracking_number = trimmed
     }
 
     setSubmitting(true)

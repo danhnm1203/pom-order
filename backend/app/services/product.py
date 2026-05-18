@@ -28,14 +28,17 @@ from app.schemas.catalog import (
 
 
 # Status sets — single source of truth for stats classification.
+# "Already placed with Korea" = purchased and every downstream state.
 _ALREADY_ORDERED_STATUSES = (
-    OrderStatus.ORDERED,
-    OrderStatus.IN_TRANSIT,
-    OrderStatus.ARRIVED,
-    OrderStatus.DELIVERED,
-    OrderStatus.COMPLETED,
+    OrderStatus.PURCHASED,
+    OrderStatus.AT_KR_WAREHOUSE,
+    OrderStatus.AT_VN_WAREHOUSE,
+    OrderStatus.RECEIVED_BY_OWNER,
+    OrderStatus.SHIPPING_TO_CUSTOMER,
+    OrderStatus.CUSTOMER_RECEIVED,
 )
-_DELIVERED_STATUSES = (OrderStatus.DELIVERED, OrderStatus.COMPLETED)
+# "Delivered to customer" = customer has the goods in hand.
+_DELIVERED_STATUSES = (OrderStatus.CUSTOMER_RECEIVED,)
 
 
 async def _resolve_or_create_brand(

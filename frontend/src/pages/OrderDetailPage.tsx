@@ -17,15 +17,18 @@ import {
 } from '@/types/api'
 
 /** All statuses in lifecycle order. Operator can pick any (except current) —
- *  no state machine, so mis-clicks can be reverted (e.g. wrong 'delivered'
- *  → back to 'arrived'). Audit log records every change. */
+ *  no state machine, so mis-clicks can be reverted (e.g. wrong
+ *  'shipping_to_customer' → back to 'received_by_owner'). Audit log records
+ *  every change. */
 const ALL_STATUSES: OrderStatus[] = [
-  'pending',
-  'ordered',
-  'in_transit',
-  'arrived',
-  'delivered',
-  'completed',
+  'chatting',
+  'order_placed',
+  'purchased',
+  'at_kr_warehouse',
+  'at_vn_warehouse',
+  'received_by_owner',
+  'shipping_to_customer',
+  'customer_received',
   'problem',
   'cancelled',
 ]
@@ -92,11 +95,19 @@ export function OrderDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
 
-  async function applyStatus(newStatus: OrderStatus, problemReason?: string) {
+  async function applyStatus(
+    newStatus: OrderStatus,
+    extras?: { problemReason?: string; trackingNumber?: string },
+  ) {
     if (!order) return
     try {
-      const body: { status: OrderStatus; problem_reason?: string } = { status: newStatus }
-      if (problemReason) body.problem_reason = problemReason
+      const body: {
+        status: OrderStatus
+        problem_reason?: string
+        tracking_number?: string
+      } = { status: newStatus }
+      if (extras?.problemReason) body.problem_reason = extras.problemReason
+      if (extras?.trackingNumber) body.tracking_number = extras.trackingNumber
       const updated = await apiClient.patch<Order>(`/api/v1/orders/${order.id}/status`, body)
       setOrder(updated)
     } catch (err) {
@@ -107,6 +118,20 @@ export function OrderDetailPage() {
   function onStatusButtonClick(newStatus: OrderStatus) {
     if (newStatus === 'problem') {
       setProblemModalOpen(true)
+      return
+    }
+    if (newStatus === 'shipping_to_customer') {
+      // Prompt for tracking# inline. Pre-fill with existing value if present
+      // (e.g. operator is re-confirming the same shipment after a misclick).
+      const existing = order?.tracking_number ?? ''
+      const input = window.prompt(t('order.tracking_prompt'), existing)
+      if (input === null) return // user cancelled
+      const trimmed = input.trim()
+      if (!trimmed) {
+        notify.error(t('order.tracking_required'))
+        return
+      }
+      void applyStatus(newStatus, { trackingNumber: trimmed })
       return
     }
     void applyStatus(newStatus)
@@ -253,6 +278,33 @@ export function OrderDetailPage() {
         </section>
       )}
 
+      {/* Tracking number banner — shown once a tracking# is set, regardless of
+       *  current status (so operator/customer can still see it after delivery). */}
+      {order.tracking_number && (
+        <div className="px-4 py-3 rounded-md bg-surface border border-border flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wide text-fg-muted">
+              {t('order.tracking_label')}
+            </p>
+            <p className="text-sm tabular font-mono mt-1">{order.tracking_number}</p>
+          </div>
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(order.tracking_number ?? '')
+                notify.success(t('order.tracking_copied'))
+              } catch {
+                notify.error(t('order.tracking_copied'))
+              }
+            }}
+            className="text-xs text-accent hover:underline"
+          >
+            {t('common.copy', { defaultValue: 'Copy' })}
+          </button>
+        </div>
+      )}
+
       {/* Problem reason banner */}
       {order.status === 'problem' && order.problem_reason && (
         <div className="px-4 py-3 rounded-md bg-danger-bg border border-danger/20">
@@ -386,7 +438,7 @@ export function OrderDetailPage() {
         onClose={() => setProblemModalOpen(false)}
         onConfirm={(reason) => {
           setProblemModalOpen(false)
-          void applyStatus('problem', reason)
+          void applyStatus('problem', { problemReason: reason })
         }}
       />
     </div>

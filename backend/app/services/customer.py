@@ -162,7 +162,7 @@ async def soft_delete_customer(
     active_orders = await db.execute(
         select(Order.id)
         .where(Order.customer_id == customer.id)
-        .where(Order.status.not_in([OrderStatus.CANCELLED, OrderStatus.COMPLETED]))
+        .where(Order.status.not_in([OrderStatus.CANCELLED, OrderStatus.CUSTOMER_RECEIVED]))
         .limit(1)
     )
     if active_orders.scalar_one_or_none() is not None:

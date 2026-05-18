@@ -11,14 +11,20 @@ from app.db.base import Base
 
 
 class OrderStatus(str, PyEnum):
-    PENDING = "pending"
-    ORDERED = "ordered"
-    IN_TRANSIT = "in_transit"
-    ARRIVED = "arrived"
-    DELIVERED = "delivered"
-    COMPLETED = "completed"
-    PROBLEM = "problem"
-    CANCELLED = "cancelled"
+    """Order lifecycle. Enum-declaration order = lifecycle order
+    (operator UX renders buttons in this order).
+    """
+
+    CHATTING = "chatting"                      # Trò chuyện với khách
+    ORDER_PLACED = "order_placed"              # Khách đặt
+    PURCHASED = "purchased"                    # Đã mua (với Hàn)
+    AT_KR_WAREHOUSE = "at_kr_warehouse"        # Đến kho Hàn
+    AT_VN_WAREHOUSE = "at_vn_warehouse"        # Đến kho Việt
+    RECEIVED_BY_OWNER = "received_by_owner"    # Về tay Xuân (owner picked up)
+    SHIPPING_TO_CUSTOMER = "shipping_to_customer"  # Vận chuyển cho khách
+    CUSTOMER_RECEIVED = "customer_received"    # Khách nhận
+    PROBLEM = "problem"                        # Có vấn đề
+    CANCELLED = "cancelled"                    # Đã huỷ
 
 
 class ShipmentStatus(str, PyEnum):
@@ -84,7 +90,7 @@ class Order(Base):
             # of `.name` ("CANCELLED") so it matches the Postgres enum values.
             values_callable=lambda x: [e.value for e in x],
         ),
-        default=OrderStatus.PENDING,
+        default=OrderStatus.CHATTING,
     )
     fx_rate_krw_to_vnd: Mapped[Decimal] = mapped_column(Numeric(18, 6), nullable=False)
     korean_shipping_krw: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0"))
@@ -94,6 +100,9 @@ class Order(Base):
     #   out_of_stock | wrong_variant | ship_delay | customer_cancel | damaged | customs_hold | other
     # Set when status='problem'. Null otherwise.
     problem_reason: Mapped[str | None] = mapped_column(String)
+    # Carrier tracking number for the customer-delivery leg. Set when status
+    # = shipping_to_customer. Surfaced on admin detail + public order page.
+    tracking_number: Mapped[str | None] = mapped_column(String)
     # Cached shortened public URL (from adurl.io or similar). Populated on demand
     # when user clicks "share". Stable across requests so customers can re-use
     # the same short link.

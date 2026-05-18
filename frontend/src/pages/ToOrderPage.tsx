@@ -6,14 +6,15 @@ import { apiClient, ApiException } from '@/lib/api-client'
 import { type OrderItemListRow, type OrderStatus } from '@/types/api'
 
 /** Statuses considered "still need to be placed with Korea". */
-const PENDING_STATUSES: OrderStatus[] = ['pending']
+const PENDING_STATUSES: OrderStatus[] = ['chatting', 'order_placed']
 /** Statuses considered "already placed with Korea (or further along)". */
 const PLACED_STATUSES: OrderStatus[] = [
-  'ordered',
-  'in_transit',
-  'arrived',
-  'delivered',
-  'completed',
+  'purchased',
+  'at_kr_warehouse',
+  'at_vn_warehouse',
+  'received_by_owner',
+  'shipping_to_customer',
+  'customer_received',
 ]
 
 type Filter = 'all' | 'to_order' | 'placed'

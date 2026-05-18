@@ -104,11 +104,15 @@ h1, h2, h3, h4 {
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
-.badge--pending     { background: var(--color-surface-2);  color: var(--color-fg-muted); }
-.badge--ordered     { background: var(--color-accent-subtle); color: var(--color-accent); }
-.badge--in-transit  { background: #e0e7ff; color: var(--status-in-transit); }
-.badge--arrived     { background: #cffafe; color: #0e7490; }       /* darker cyan for AA contrast */
-.badge--delivered   { background: var(--color-success-bg); color: var(--color-success); }
-.badge--completed   { background: var(--color-success-bg); color: var(--status-completed); }
-.badge--problem     { background: var(--color-danger-bg);  color: var(--color-danger); }
-.badge--cancelled   { background: var(--color-surface-2);  color: var(--color-fg-muted); }  /* was fg-subtle (#a1a1aa) — failed AA contrast */
+/* Lifecycle colors progress from neutral (chatting) → blue (in-transit phases)
+ * → green (handed off / received). Off-lifecycle problem/cancelled stay danger/muted. */
+.badge--chatting              { background: var(--color-surface-2);  color: var(--color-fg-muted); }
+.badge--order-placed          { background: var(--color-surface-2);  color: var(--color-fg-muted); }
+.badge--purchased             { background: var(--color-accent-subtle); color: var(--color-accent); }
+.badge--at-kr-warehouse       { background: #e0e7ff; color: var(--status-in-transit); }
+.badge--at-vn-warehouse       { background: #cffafe; color: #0e7490; }
+.badge--received-by-owner     { background: #cffafe; color: #0e7490; }
+.badge--shipping-to-customer  { background: var(--color-success-bg); color: var(--color-success); }
+.badge--customer-received     { background: var(--color-success-bg); color: var(--status-completed); }
+.badge--problem               { background: var(--color-danger-bg);  color: var(--color-danger); }
+.badge--cancelled             { background: var(--color-surface-2);  color: var(--color-fg-muted); }
