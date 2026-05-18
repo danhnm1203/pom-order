@@ -187,6 +187,7 @@
     "must_have_item": "상품이 최소 1개 필요합니다",
     "customer_column": "고객",
     "phone_column": "전화번호",
+    "filter_by_customer": "고객으로 필터",
     "no_customer": "(고객 선택 안됨)",
     "customer_section": "고객",
     "primary_label": "(주)",
@@ -276,7 +277,8 @@
     "empty_state": "고객이 없습니다. 첫 고객을 추가하세요.",
     "no_search_results": "검색 결과 없음",
     "saving": "저장 중...",
-    "save_customer": "고객 저장"
+    "save_customer": "고객 저장",
+    "view_orders": "이 고객의 주문 보기"
   },
   "product": {
     "title": "상품",

@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Link } from 'react-router-dom'
 
 import { useNotify } from '@/components/Toast'
 import { apiClient, ApiException } from '@/lib/api-client'
@@ -112,7 +113,15 @@ export function CustomerListPage() {
                 const defaultAddr = c.addresses?.find((a) => a.is_default) ?? c.addresses?.[0]
                 return (
                   <tr key={c.id} className="border-t border-border hover:bg-surface-2">
-                    <td className="py-2 px-4 font-medium">{c.name}</td>
+                    <td className="py-2 px-4 font-medium">
+                      <Link
+                        to={`/orders?customer_id=${c.id}`}
+                        className="text-accent hover:underline"
+                        title={t('customer.view_orders')}
+                      >
+                        {c.name}
+                      </Link>
+                    </td>
                     <td className="py-2 px-4 text-xs text-fg-muted">
                       {appContact
                         ? `${appContact.channel}: ${appContact.value}`

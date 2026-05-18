@@ -187,6 +187,7 @@
     "must_have_item": "Cần ít nhất 1 item",
     "customer_column": "Khách hàng",
     "phone_column": "Số điện thoại",
+    "filter_by_customer": "Lọc theo khách",
     "no_customer": "(chưa chọn khách)",
     "customer_section": "Khách hàng",
     "primary_label": "(chính)",
@@ -276,7 +277,8 @@
     "empty_state": "Chưa có khách. Thêm khách đầu tiên.",
     "no_search_results": "Không tìm thấy khách hàng.",
     "saving": "Đang lưu...",
-    "save_customer": "Lưu khách"
+    "save_customer": "Lưu khách",
+    "view_orders": "Xem các đơn của khách này"
   },
   "product": {
     "title": "Sản phẩm",

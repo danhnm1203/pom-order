@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 
 import { QuickStatusMenu } from '@/components/QuickStatusMenu'
 import { useNotify } from '@/components/Toast'
 import { apiClient } from '@/lib/api-client'
 import { csvRow, downloadFile, formatVnd, getPrimaryContact } from '@/lib/utils'
-import { type Order, type OrderStatus } from '@/types/api'
+import { type Customer, type Order, type OrderStatus } from '@/types/api'
 
 const STATUS_FILTERS: Array<OrderStatus | 'all'> = [
   'all',
@@ -23,12 +23,16 @@ const STATUS_FILTERS: Array<OrderStatus | 'all'> = [
 export function OrderListPage() {
   const { t, i18n } = useTranslation()
   const notify = useNotify()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const customerIdParam = searchParams.get('customer_id') ?? ''
   const [orders, setOrders] = useState<Order[]>([])
   const [filter, setFilter] = useState<OrderStatus | 'all'>('all')
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // Fetched separately so the filter pill can show the customer's name.
+  const [customerFilter, setCustomerFilter] = useState<Customer | null>(null)
 
   // Debounce search input → reduce API calls while typing
   useEffect(() => {
@@ -41,13 +45,32 @@ export function OrderListPage() {
     const params = new URLSearchParams()
     if (filter !== 'all') params.set('status', filter)
     if (debouncedSearch.trim()) params.set('search', debouncedSearch.trim())
+    if (customerIdParam) params.set('customer_id', customerIdParam)
     const qs = params.toString()
     apiClient
       .get<Order[]>(`/api/v1/orders${qs ? `?${qs}` : ''}`)
       .then(setOrders)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false))
-  }, [filter, debouncedSearch])
+  }, [filter, debouncedSearch, customerIdParam])
+
+  // Fetch customer details (for the filter pill label) — separate from orders.
+  useEffect(() => {
+    if (!customerIdParam) {
+      setCustomerFilter(null)
+      return
+    }
+    apiClient
+      .get<Customer>(`/api/v1/customers/${customerIdParam}`)
+      .then(setCustomerFilter)
+      .catch(() => setCustomerFilter(null))
+  }, [customerIdParam])
+
+  function clearCustomerFilter() {
+    const next = new URLSearchParams(searchParams)
+    next.delete('customer_id')
+    setSearchParams(next, { replace: true })
+  }
 
   const dateLocale = i18n.resolvedLanguage === 'ko' ? 'ko-KR' : 'vi-VN'
 
@@ -113,6 +136,26 @@ export function OrderListPage() {
           </Link>
         </div>
       </div>
+
+      {/* Customer filter pill (from /customers click-through) */}
+      {customerIdParam && (
+        <div className="mb-3 inline-flex items-center gap-2 bg-surface-2 border border-border rounded-md px-3 py-1.5 text-sm">
+          <span className="text-fg-muted text-xs uppercase tracking-wide">
+            {t('order.filter_by_customer')}
+          </span>
+          <span className="font-medium">
+            {customerFilter?.name ?? customerIdParam.slice(0, 8)}
+          </span>
+          <button
+            type="button"
+            onClick={clearCustomerFilter}
+            className="text-fg-subtle hover:text-fg ml-1"
+            aria-label={t('common.cancel')}
+          >
+            ×
+          </button>
+        </div>
+      )}
 
       {/* Search bar */}
       <div className="mb-3">
