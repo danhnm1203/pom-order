@@ -16,6 +16,7 @@ from sqlalchemy.orm import selectinload
 from app.dependencies import get_db
 from app.exceptions import ApiError
 from app.models.order import Order
+from app.models.payment import Payment
 from app.schemas.lookup import LookupRequest, LookupResponse, PublicShopInfo
 from app.services.lookup import perform_lookup, public_shop_info
 from app.services.order_calculations import compute_order_totals
@@ -75,10 +76,18 @@ async def get_public_order(
     if order is None or order.deleted_at is not None:
         raise ApiError(404, "order_not_found", "Đơn không tồn tại hoặc đã bị xóa")
 
+    # Load payments separately — Order has no relationship to Payment yet, and
+    # the customer-facing page must subtract deposits from amount_owed (else
+    # the page double-charges after the customer has paid the cọc).
+    payments_res = await db.execute(
+        select(Payment).where(Payment.order_id == order.id)
+    )
+    payments = list(payments_res.scalars().all())
+
     # Compute totals (without exposing cost)
     totals = compute_order_totals(
         items=list(order.items),
-        payments=[],  # TODO: load payments when route is fully implemented
+        payments=payments,
         fx_rate_krw_to_vnd=order.fx_rate_krw_to_vnd,
         korean_shipping_krw=order.korean_shipping_krw,
         international_shipping_vnd=order.international_shipping_vnd,
@@ -102,6 +111,7 @@ async def get_public_order(
         ],
         "total_vnd": str(totals.total_vnd),
         "international_shipping_vnd": str(totals.international_shipping_vnd),
+        "total_paid_vnd": str(totals.total_paid_vnd),
         "amount_owed_vnd": str(totals.amount_owed_vnd),
         # NOTE: cost_vnd and profit_vnd intentionally omitted
     }

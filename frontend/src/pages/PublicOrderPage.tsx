@@ -166,6 +166,12 @@ export function PublicOrderPage() {
               <span className="tabular">{formatVnd(data.international_shipping_vnd)}</span>
             </div>
           )}
+          {Number(data.total_paid_vnd) > 0 && (
+            <div className="flex justify-between text-success">
+              <span>{t('public.paid')}</span>
+              <span className="tabular">− {formatVnd(data.total_paid_vnd)}</span>
+            </div>
+          )}
           <hr className="border-border my-2" />
           <div className="flex justify-between text-base">
             <span className="font-semibold">{t('public.amount_owed')}</span>

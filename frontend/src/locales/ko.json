@@ -335,6 +335,7 @@
     "qty_label": "수량:",
     "subtotal": "상품 총액",
     "intl_shipping": "국제 배송비",
+    "paid": "기지급액 (예약금)",
     "amount_owed": "결제할 금액",
     "footer_note": "쇼핑 주문 조회 페이지. 문의는 Zalo / Facebook 으로 연락 주세요.",
     "loading": "주문을 로드하는 중...",

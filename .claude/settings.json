@@ -101,7 +101,8 @@
       "Bash(.venv/bin/python -c \"from app.main import app; print\\('routes:', len\\(app.routes\\)\\)\")",
       "Bash(.venv/bin/python -m pytest tests/unit/test_order_status.py -q)",
       "Bash(echo \"tsc exit=$?\")",
-      "Bash(python -m py_compile app/models/customer.py app/schemas/customer.py app/services/customer.py)"
+      "Bash(python -m py_compile app/models/customer.py app/schemas/customer.py app/services/customer.py)",
+      "Bash(python -m py_compile app/api/routes/public.py)"
     ],
     "additionalDirectories": [
       "/Users/danhnguyen/Desktop/freelancers/pom_order/.claude/skills",

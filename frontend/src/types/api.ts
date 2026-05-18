@@ -272,6 +272,7 @@ export interface PublicOrderResponse {
   }>
   total_vnd: string
   international_shipping_vnd: string
+  total_paid_vnd: string
   amount_owed_vnd: string
 }
 
